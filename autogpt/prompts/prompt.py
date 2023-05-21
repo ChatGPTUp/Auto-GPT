@@ -12,7 +12,7 @@ from autogpt.utils import clean_input
 CFG = Config()
 
 DEFAULT_TRIGGERING_PROMPT = (
-    "Determine which next command to use, and respond using the format specified above:"
+    "Determine which next command to use, and respond using the format specified above"
 )
 
 

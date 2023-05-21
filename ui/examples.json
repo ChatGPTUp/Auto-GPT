@@ -1,0 +1,19 @@
+[
+    [
+        "뉴스요약봇",
+        "당신은 뉴스 요약 봇입니다.",
+        [
+            ["네이버의 정치 기사 5개를 요약해서 파일로 저장"]
+        ]
+    ],
+    [
+        "AutoGPT-Demo",
+        "an ai designed to teach me about auto gpt",
+        [
+            ["search auto gpt"], 
+            ["find the github and figure out what the project is"], 
+            ["explain what auto gpt is in a file named autogpt.txt in korean"],
+            ["when done saving, terminate"]
+        ]
+    ]
+]

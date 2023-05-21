@@ -6,6 +6,7 @@ from colorama import Fore, Style
 
 from autogpt.app import execute_command, get_command
 from autogpt.config import Config
+from autogpt.llm.api_manager import ApiManager
 from autogpt.json_utils.json_fix_llm import fix_json_using_multiple_techniques
 from autogpt.json_utils.utilities import LLM_DEFAULT_RESPONSE_FORMAT, validate_json
 from autogpt.llm import chat_with_ai, create_chat_completion, create_chat_message
@@ -134,7 +135,7 @@ class Agent:
                     self.triggering_prompt,
                     self.full_message_history,
                     self.memory,
-                    cfg.fast_token_limit,
+                    cfg.smart_token_limit,
                 )  # TODO: This hardcodes the model to use GPT3.5. Make this an argument
 
             assistant_reply_json = fix_json_using_multiple_techniques(assistant_reply)
@@ -257,6 +258,10 @@ class Agent:
                 logger.typewriter_log(
                     f"{Fore.CYAN}AUTHORISED COMMANDS LEFT: {Style.RESET_ALL}{self.next_action_count}"
                 )
+                
+            # log used budget
+            api_manager = ApiManager()
+            logger.typewriter_log("$ SPENT: ", Fore.YELLOW, str(round(api_manager.get_total_cost(), 5)))
 
             # Execute command
             if command_name is not None and command_name.lower().startswith("error"):
@@ -311,7 +316,7 @@ class Agent:
                 logger.typewriter_log(
                     "SYSTEM: ", Fore.YELLOW, "Unable to execute command"
                 )
-
+            
     def _resolve_pathlike_command_args(self, command_args):
         if "directory" in command_args and command_args["directory"] in {"", "/"}:
             command_args["directory"] = str(self.workspace.root)
