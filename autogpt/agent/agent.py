@@ -6,6 +6,7 @@ from colorama import Fore, Style
 
 from autogpt.app import execute_command, get_command
 from autogpt.config import Config
+from autogpt.llm.api_manager import ApiManager
 from autogpt.json_utils.json_fix_llm import fix_json_using_multiple_techniques
 from autogpt.json_utils.utilities import LLM_DEFAULT_RESPONSE_FORMAT, validate_json
 from autogpt.llm import chat_with_ai, create_chat_completion, create_chat_message
@@ -311,6 +312,10 @@ class Agent:
                 logger.typewriter_log(
                     "SYSTEM: ", Fore.YELLOW, "Unable to execute command"
                 )
+            
+            # log used budget
+            api_manager = ApiManager()
+            logger.typewriter_log("$ SPENT: ", Fore.YELLOW, str(round(api_manager.get_total_cost(), 5)))
 
     def _resolve_pathlike_command_args(self, command_args):
         if "directory" in command_args and command_args["directory"] in {"", "/"}:
