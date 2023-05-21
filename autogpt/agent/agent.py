@@ -258,6 +258,10 @@ class Agent:
                 logger.typewriter_log(
                     f"{Fore.CYAN}AUTHORISED COMMANDS LEFT: {Style.RESET_ALL}{self.next_action_count}"
                 )
+                
+            # log used budget
+            api_manager = ApiManager()
+            logger.typewriter_log("$ SPENT: ", Fore.YELLOW, str(round(api_manager.get_total_cost(), 5)))
 
             # Execute command
             if command_name is not None and command_name.lower().startswith("error"):
@@ -313,10 +317,6 @@ class Agent:
                     "SYSTEM: ", Fore.YELLOW, "Unable to execute command"
                 )
             
-            # log used budget
-            api_manager = ApiManager()
-            logger.typewriter_log("$ SPENT: ", Fore.YELLOW, str(round(api_manager.get_total_cost(), 5)))
-
     def _resolve_pathlike_command_args(self, command_args):
         if "directory" in command_args and command_args["directory"] in {"", "/"}:
             command_args["directory"] = str(self.workspace.root)
