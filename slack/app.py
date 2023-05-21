@@ -40,7 +40,7 @@ ai_role: an AI that achieves below GOALS.
 ai_goals:
 - {user_message}
 - Terminate if above goal is achieved.
-api_budget: 3"""
+api_budget: 1"""
     with open(os.path.join(folder, "ai_settings.yaml"), "w") as f:
         f.write(ai_settings)
     return folder
