@@ -8,7 +8,7 @@ def format_directory(directory):
         for i, item in enumerate(files):
             is_folder = os.path.isdir(os.path.join(directory, item))
             joiner = "├── " if i < len(files) - 1 else "└── "
-            item_html = item + "/" if is_folder else f"<a href='file={os.path.join(directory, item)}'>{item}</a>"
+            item_html = item + "/" if is_folder else f"<a href='file={os.path.join(directory, item)}' target='_blank'>{item}</a>"
             output.append("│   " * level + joiner + item_html)
             if is_folder:
                 helper(os.path.join(directory, item), level + 1, output)

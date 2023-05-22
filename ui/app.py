@@ -7,7 +7,6 @@ import uuid
 
 FILE_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_DIR = os.path.join(os.path.dirname(FILE_DIR), "auto_gpt_workspace")
-OUTPUT_DIR_ORIG = OUTPUT_DIR
 if not os.path.exists(OUTPUT_DIR):
     os.mkdir(OUTPUT_DIR)
 
@@ -83,29 +82,14 @@ with gr.Blocks(theme=gr.themes.Soft(), css=CSS) as app:
 
                 # section: download files
                 gr.Markdown("* Download output files")
-                html = gr.HTML(
-                    lambda: f"""
-                        generated files
-                        <pre><code style='overflow-x: auto'>{utils.format_directory(OUTPUT_DIR)}</pre></code>
-                """, every=1, elem_id="files", 
-                )
-                download_btn = gr.Button("Download All Files")
+                with gr.Row():
+                    show_btn = gr.Button("Show Files")
+                    download_btn = gr.Button("Download All Files", visible=False)
+                output_files = gr.HTML()
 
-    chat_history = gr.State([[None, None]])
-    api = gr.State(None)
-    hex = gr.State(None)
-
-    def get_hex(html):
-        global HEX
-        HEX = uuid.uuid4().hex[-8:]
-        global OUTPUT_DIR
-        OUTPUT_DIR = os.path.join(OUTPUT_DIR_ORIG, HEX)
-        if not os.path.exists(OUTPUT_DIR):
-            os.mkdir(OUTPUT_DIR)
-        return html, HEX
-
-
-    def start(open_ai_key, ai_name, ai_role, top_5_goals, hex, identifier):
+    def start(open_ai_key, ai_name, ai_role, top_5_goals, identifier):
+        postfix = uuid.uuid4().hex[-8:]
+        identifier = f"{identifier}-{postfix}"
         auto_api = AutoAPI(open_ai_key, ai_name, ai_role, top_5_goals, identifier)
         return gr.Column.update(visible=False), gr.Column.update(visible=True), auto_api, identifier
 
@@ -147,19 +131,26 @@ with gr.Blocks(theme=gr.themes.Soft(), css=CSS) as app:
     def refresh(download):
         return download
 
-    # start_btn.click(
-    #     start,
-    #     [open_ai_key, ai_name, ai_role, top_5_goals, download],
-    #     [setup_pane, main_pane, api, download],
-    # ).then(refresh, [download], [download]).then(bot_response, [chat_history, api], chatbot).then(
-    #     activate_inputs, None, [yes_btn, consecutive_yes, custom_response]
-    # )
+    def show_files(identifier_main):
+        try:
+            dir = utils.format_directory(os.path.join(OUTPUT_DIR, identifier_main))
+        except:
+            dir = identifier_main + "/"
+        print(dir)
+        return gr.HTML.update(f"<pre>{dir}</pre>"), gr.Button.update(visible=True)
+
+    def download_all_files(identifier_main):
+        print(os.path.join(OUTPUT_DIR, identifier_main))
+        shutil.make_archive("outputs", "zip", os.path.join(OUTPUT_DIR, identifier_main))
+
+    chat_history = gr.State([[None, None]])
+    api = gr.State(None)
+
     start_btn.click(
-        get_hex,
-        [html], [html, hex],
+        start, [open_ai_key, ai_name, ai_role, top_5_goals, identifier_setup], [setup_pane, main_pane, api, identifier_main],
     ).then(
-        start, [open_ai_key, ai_name, ai_role, top_5_goals, hex, identifier_setup], [setup_pane, main_pane, api, identifier_main],
-    ).then(bot_response, [chat_history, api], chatbot).then(
+        bot_response, [chat_history, api], chatbot
+    ).then(
         activate_inputs, None, [yes_btn, consecutive_yes, custom_response]
     )
 
@@ -170,6 +161,7 @@ with gr.Blocks(theme=gr.themes.Soft(), css=CSS) as app:
     ).then(
         activate_inputs, None, [yes_btn, consecutive_yes, custom_response]
     )
+
     custom_response.submit(
         deactivate_inputs, None, [yes_btn, consecutive_yes, custom_response]
     ).then(
@@ -180,11 +172,12 @@ with gr.Blocks(theme=gr.themes.Soft(), css=CSS) as app:
         activate_inputs, None, [yes_btn, consecutive_yes, custom_response]
     )
 
-    def download_all_files():
-        print(OUTPUT_DIR)
-        print(HEX)
-        shutil.make_archive("outputs", "zip", OUTPUT_DIR)
+    show_btn.click(
+        show_files, [identifier_main], [output_files, download_btn]
+    )
 
-    download_btn.click(download_all_files).then(None, _js=utils.DOWNLOAD_OUTPUTS_JS)
+    download_btn.click(
+        download_all_files, [identifier_main], None
+    ).then(None, _js=utils.DOWNLOAD_OUTPUTS_JS)
 
 app.queue(concurrency_count=20).launch(file_directories=[OUTPUT_DIR])
