@@ -107,7 +107,7 @@ def main(
             browser_name,
             allow_downloads,
             skip_news,
-            workspace_directory,
+            workspace_directory.strip(),
             install_plugin_deps,
         )
 

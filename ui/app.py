@@ -3,9 +3,11 @@ import utils
 from api import AutoAPI, get_openai_api_key
 import os, shutil
 import json
+import uuid
 
 FILE_DIR = os.path.dirname(os.path.abspath(__file__))
 OUTPUT_DIR = os.path.join(os.path.dirname(FILE_DIR), "auto_gpt_workspace")
+OUTPUT_DIR_ORIG = OUTPUT_DIR
 if not os.path.exists(OUTPUT_DIR):
     os.mkdir(OUTPUT_DIR)
 
@@ -29,11 +31,19 @@ with gr.Blocks(theme=gr.themes.Soft(), css=CSS) as app:
                 label="OpenAI API Key",
                 type="password",
             )
+            identifier_setup = gr.Textbox(
+                value="default",
+                label="Identifier",
+                type="text"
+            )
         gr.Markdown(
             "* `AI Name`, `AI Role`, `AI Goals`를 채워주세요. 또는 `Examples`에서 선택해주세요. 이후 `Start` 버튼을 누르면 태스크를 수행합니다."
         )
         with gr.Row():
-            ai_name = gr.Textbox(label="AI Name", placeholder="e.g. Entrepreneur-GPT")
+            ai_name = gr.Textbox(
+                label="AI Name", 
+                placeholder="e.g. Entrepreneur-GPT"
+            )
             ai_role = gr.Textbox(
                 label="AI Role",
                 placeholder="e.g. an AI designed to autonomously develop and run businesses with the sole goal of increasing your net worth.",
@@ -55,6 +65,12 @@ with gr.Blocks(theme=gr.themes.Soft(), css=CSS) as app:
             with gr.Column(scale=2):
                 chatbot = gr.Chatbot(elem_id="chatbot").style(height=750)
             with gr.Column(scale=1):
+                identifier_main = gr.Textbox(
+                    label="Identifier",
+                    type="text"
+                )
+
+                # section: feedback from user
                 gr.Markdown("* Yes or Custom Response")
                 with gr.Row():
                     yes_btn = gr.Button("yes", variant="primary", interactive=False)
@@ -65,21 +81,33 @@ with gr.Blocks(theme=gr.themes.Soft(), css=CSS) as app:
                     interactive=False,
                 )
 
+                # section: download files
                 gr.Markdown("* Download output files")
-                gr.HTML(
+                html = gr.HTML(
                     lambda: f"""
                         generated files
                         <pre><code style='overflow-x: auto'>{utils.format_directory(OUTPUT_DIR)}</pre></code>
-                """, every=3, elem_id="files"
+                """, every=1, elem_id="files", 
                 )
                 download_btn = gr.Button("Download All Files")
 
     chat_history = gr.State([[None, None]])
     api = gr.State(None)
+    hex = gr.State(None)
 
-    def start(open_ai_key, ai_name, ai_role, top_5_goals):
-        auto_api = AutoAPI(open_ai_key, ai_name, ai_role, top_5_goals)
-        return gr.Column.update(visible=False), gr.Column.update(visible=True), auto_api
+    def get_hex(html):
+        global HEX
+        HEX = uuid.uuid4().hex[-8:]
+        global OUTPUT_DIR
+        OUTPUT_DIR = os.path.join(OUTPUT_DIR_ORIG, HEX)
+        if not os.path.exists(OUTPUT_DIR):
+            os.mkdir(OUTPUT_DIR)
+        return html, HEX
+
+
+    def start(open_ai_key, ai_name, ai_role, top_5_goals, hex, identifier):
+        auto_api = AutoAPI(open_ai_key, ai_name, ai_role, top_5_goals, identifier)
+        return gr.Column.update(visible=False), gr.Column.update(visible=True), auto_api, identifier
 
     def bot_response(chat, api):
         messages = []
@@ -116,10 +144,21 @@ with gr.Blocks(theme=gr.themes.Soft(), css=CSS) as app:
             custom_response: gr.Textbox.update(interactive=False),
         }
 
+    def refresh(download):
+        return download
+
+    # start_btn.click(
+    #     start,
+    #     [open_ai_key, ai_name, ai_role, top_5_goals, download],
+    #     [setup_pane, main_pane, api, download],
+    # ).then(refresh, [download], [download]).then(bot_response, [chat_history, api], chatbot).then(
+    #     activate_inputs, None, [yes_btn, consecutive_yes, custom_response]
+    # )
     start_btn.click(
-        start,
-        [open_ai_key, ai_name, ai_role, top_5_goals],
-        [setup_pane, main_pane, api],
+        get_hex,
+        [html], [html, hex],
+    ).then(
+        start, [open_ai_key, ai_name, ai_role, top_5_goals, hex, identifier_setup], [setup_pane, main_pane, api, identifier_main],
     ).then(bot_response, [chat_history, api], chatbot).then(
         activate_inputs, None, [yes_btn, consecutive_yes, custom_response]
     )
@@ -142,6 +181,8 @@ with gr.Blocks(theme=gr.themes.Soft(), css=CSS) as app:
     )
 
     def download_all_files():
+        print(OUTPUT_DIR)
+        print(HEX)
         shutil.make_archive("outputs", "zip", OUTPUT_DIR)
 
     download_btn.click(download_all_files).then(None, _js=utils.DOWNLOAD_OUTPUTS_JS)
