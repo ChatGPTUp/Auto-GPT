@@ -34,9 +34,9 @@ def set_state(state_file, state):
 
 
 class AutoAPI:
-    def __init__(self, openai_key, ai_name, ai_role, top_5_goals):
+    def __init__(self, openai_key, ai_name, ai_role, top_5_goals, hex):
         self.openai_key = openai_key
-        hex = uuid.uuid4().hex
+        # hex = uuid.uuid4().hex
         print(hex)
         self.state_file = os.path.join(STATE_DIR, f"state_{hex}.json")
         self.log_file = os.path.join(STATE_DIR, f"log_{hex}.json")
@@ -68,6 +68,7 @@ ai_role: {ai_role}
                     os.path.join(REPO_DIR, "ui", "api.py"),
                     openai_key,
                     self.state_file,
+                    f"auto_gpt_workspace/{hex}",
                 ],
                 cwd=REPO_DIR,
                 stdout=f,
@@ -102,7 +103,7 @@ ai_role: {ai_role}
 
 if __name__ == "__main__":
     print(sys.argv)
-    _, openai_key, state_file = sys.argv
+    _, openai_key, state_file, workspace_dir = sys.argv
     os.environ["OPENAI_API_KEY"] = openai_key
     import autogpt.config.config
     from autogpt.logs import logger
@@ -149,4 +150,6 @@ if __name__ == "__main__":
     # Spinner.spin = spinner_start
 
     sys.argv = sys.argv[:1]
+    sys.argv.append(f"-w {workspace_dir}")
+    print(sys.argv)
     main()
