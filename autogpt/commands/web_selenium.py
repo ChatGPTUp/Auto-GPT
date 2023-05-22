@@ -57,11 +57,11 @@ def browse_website_and_extract_related_links(url: str, question: str) -> str:
         str: The answer and links to the user
     """    
     global URL_MEMORY
-    if url in URL_MEMORY: 
-        #print(url, '->', URL_MEMORY[url])
+    if url in URL_MEMORY:
         url = URL_MEMORY[url]    
-    
+
     try:
+        print(f'BROWSING: {url}')
         html_content, driver = get_html_content_with_selenium(url)
     except WebDriverException as e:
         msg = e.msg.split("\n")[0]
@@ -93,10 +93,10 @@ def browse_website_and_extract_related_text(url: str, question: str) -> str:
     """    
     global URL_MEMORY
     if url in URL_MEMORY: 
-        print(url, '->', URL_MEMORY[url])
-        url = URL_MEMORY[url]    
-    
+        url = URL_MEMORY[url]
+
     try:
+        print(f'BROWSING: {url}')
         driver, text = scrape_text_with_selenium(url)
     except WebDriverException as e:
         msg = e.msg.split("\n")[0]
@@ -123,9 +123,10 @@ def browse_website_and_extract_related_text(url: str, question: str) -> str:
 def get_webpage_text_summary(url: str, question: str, max_len=3500) -> str:
     global URL_MEMORY
     if url in URL_MEMORY:
-        print(url, URL_MEMORY[url])
         url = URL_MEMORY[url]
+        
     try:
+        print(f'BROWSING: {url}')
         html_content, driver = get_html_content_with_selenium(url)
     except WebDriverException as e:
         # These errors are often quite long and include lots of context.

@@ -54,7 +54,7 @@ def format_stdout(stdout):
         return text[index:]
     if "Thinking..." in text:
         return
-    prefixes = ('REASONING', 'PLAN', '- ', 'CRITICISM', 'SPEAK', 'NEXT ACTION', 'SYSTEM', '$ SPENT')
+    prefixes = ('REASONING', 'PLAN', '- ', 'CRITICISM', 'SPEAK', 'NEXT ACTION', 'SYSTEM', '$ SPENT', 'BROWSING')
     if text.startswith(prefixes):
         return text
 
@@ -107,6 +107,12 @@ def run_autogpt_slack(user_message, options, channel, thread_ts):
         if not options['debug']:
             if output.startswith('SPEAK'):
                 output = output[6:].strip()
+                client.chat_postMessage(
+                    channel=channel,
+                    text=output,
+                    thread_ts=thread_ts
+                )
+            elif output.startswith('BROWSING'):
                 client.chat_postMessage(
                     channel=channel,
                     text=output,
