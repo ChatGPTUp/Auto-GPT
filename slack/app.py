@@ -6,8 +6,11 @@ import time
 import re
 import json
 import subprocess
-from dotenv import load_dotenv
+from collections import defaultdict
+import signal
 
+import openai
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request, BackgroundTasks
 from fastapi.responses import JSONResponse
 from slack_sdk import WebClient
@@ -26,23 +29,75 @@ signature_verifier = SignatureVerifier(
 client = WebClient(token=os.getenv("SLACK_BOT_TOKEN"))
 client.retry_handlers.append(rate_limit_handler)
 
-def prepare_workspace(user_message):
-    now = datetime.datetime.now()
-    date_str = now.strftime("%Y-%m-%d_%H-%M-%S")
-    length = 5
-    random_str = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(length))
-    workspace_name = date_str + "_" + random_str
-    workspace = os.path.join(os.getcwd(), 'auto_gpt_workspace', workspace_name)
-    os.makedirs(workspace, exist_ok=True)
-    ai_settings = f"""ai_name: AutoAskUp
+thread_ts2pids = defaultdict(list)
+
+def user_message2ai_settings(user_message, api_budget=1, infer=True):
+    if infer:
+        prompt = f"""
+An AI bot will handle given request. Provide name, role and goals for the AI assistant in JSON format with following keys:
+- "ai_name": AI names
+- "ai_role": AI role, starting with 'an AI that'
+- "ai_goals": List of 1~4 necessary sequential goals for the AI.
+Simplify ai_goals as much as possible.
+
+Request:
+```
+Write dummy text to 'dummy_text.txt' file
+```
+Response:
+{{
+    "ai_name": "DummyTextBot",
+    "ai_role": "an AI that writes dummy text to 'dummy_text.txt' file.",
+    "ai_goals": [
+        "Generate dummy text.",
+        "Write dummy text to 'dummy_text.txt' file."
+    ]
+}}
+Request:
+```
+Decide whether to buy or sell Tesla stock, and write a report on the decision in markdown format in Korean.
+```
+Response:
+{{
+    "ai_name": "TeslaStockBot",
+    "ai_role": "an AI that decides whether to buy or sell Tesla stock, and writes a report on the decision in markdown format in Korean.",
+    "ai_goals": [
+        "Research financial data of Tesla stock.",
+        "Research recent news about Tesla.",
+        "Based on research, make a decision whether to buy or sell Tesla stock.",
+        "Write a report on the decision in markdown format in Korean."
+    ]
+}}
+Request:
+```
+{user_message}
+```
+Response:
+"""
+        response = openai.ChatCompletion.create(
+            model='gpt-3.5-turbo',
+            messages=[{'role': 'user', 'content': prompt}],
+            temperature=0,
+            api_key=os.getenv('OPENAI_API_KEY')
+        )
+        data = json.loads(response.choices[0]['message']['content'])
+        ai_goals_str = '\n'.join(['- ' + goal for goal in  data['ai_goals']])
+        ai_settings = f"""
+ai_name: {data['ai_name']}
+ai_role: {data['ai_role']}
+ai_goals:
+{ai_goals_str}
+- Terminate if above goals are achieved.
+api_budget: {api_budget}
+"""
+    else:
+        ai_settings = f"""ai_name: AutoAskUp
 ai_role: an AI that achieves below GOALS.
 ai_goals:
 - {user_message}
 - Terminate if above goal is achieved.
-api_budget: 1"""
-    with open(os.path.join(workspace, "ai_settings.yaml"), "w") as f:
-        f.write(ai_settings)
-    return workspace
+api_budget: {api_budget}"""
+    return ai_settings
 
 def format_stdout(stdout):
     text = stdout.decode()
@@ -77,8 +132,24 @@ def process_user_message(user_message):
 def run_autogpt_slack(user_message, options, channel, thread_ts):
     
     # Make workspace folder and write ai_settings.yaml in it
-    workspace = prepare_workspace(user_message)
-    
+    now = datetime.datetime.now()
+    date_str = now.strftime("%Y-%m-%d_%H-%M-%S")
+    length = 5
+    random_str = ''.join(random.choice(string.ascii_letters + string.digits) for _ in range(length))
+    workspace_name = date_str + "_" + random_str
+    workspace = os.path.join(os.getcwd(), 'auto_gpt_workspace', workspace_name)
+    os.makedirs(workspace, exist_ok=True)
+    ai_settings = user_message2ai_settings(user_message)
+    with open(os.path.join(workspace, "ai_settings.yaml"), "w") as f:
+        f.write(ai_settings)
+    ai_settings_message = f"AutoGPT Settings\n{ai_settings.replace('api_budget: ', 'api_budget: $')}"
+    print(ai_settings_message)
+    client.chat_postMessage(
+        channel=channel,
+        text=ai_settings_message,
+        thread_ts=thread_ts
+    )
+
     # Run autogpt
     main_dir = os.path.dirname(os.getcwd())
     process = subprocess.Popen(
@@ -87,6 +158,9 @@ def run_autogpt_slack(user_message, options, channel, thread_ts):
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE
     )
+    # add to pid
+    thread_ts2pids[thread_ts].append(process.pid)
+    print('thread_ts2pids', thread_ts2pids)
 
     # Read stdout and send messages to slack
     started_loop = False
@@ -159,9 +233,16 @@ def run_autogpt_slack(user_message, options, channel, thread_ts):
     # Send $ spent message to slack
     client.chat_postMessage(
         channel=channel,
-        text=f"Total $ spent: {dollars_spent}",
+        text=f"Total Spent: ${round(float(dollars_spent), 2)}",
         thread_ts=thread_ts
     )
+
+    # Delete from pid
+    if process.pid in thread_ts2pids[thread_ts]:
+        thread_ts2pids[thread_ts].remove(process.pid)
+        if len(thread_ts2pids[thread_ts]) == 0:
+            del thread_ts2pids[thread_ts]
+
 
 @app.post("/")
 async def slack_events(request: Request, background_tasks: BackgroundTasks):
@@ -185,16 +266,27 @@ async def slack_events(request: Request, background_tasks: BackgroundTasks):
 
     data = json.loads(body)
     user_message, options = process_user_message(data['event']['text'])
-    background_tasks.add_task(run_autogpt_slack, user_message, options, data['event']['channel'], data['event']['ts'])
-    start_message = "AutoGPT가 실행됩니다."
+    event = data['event']  
+    thread_ts = event['thread_ts'] if 'thread_ts' in event else event['ts']
+    
+    if user_message.lower() == 'stop':
+        # If stop command, kill process
+        for pid in thread_ts2pids[thread_ts]:
+            os.kill(pid, signal.SIGTERM)
+        del thread_ts2pids[thread_ts]
+        print('thread_ts2pids', thread_ts2pids)
+        return JSONResponse(content="AutoAskUp is stopped.")
+    
+    background_tasks.add_task(run_autogpt_slack, user_message, options, event['channel'], thread_ts)
+    start_message = "AutoAskUp is running..."
     if options['debug']:
-        start_message += " (DEBUG MODE)"
+        start_message += " (in DEBUG MODE)"
     if not options['gpt3_only']:
-        start_message += " (GPT-4)"
+        start_message += " (with GPT4)"
     client.chat_postMessage(
-        channel=data['event']['channel'],
+        channel=event['channel'],
         text=start_message,
-        thread_ts=data['event']['ts']
+        thread_ts=thread_ts
     )
     return JSONResponse(content="Launched AutoGPT.")
 
