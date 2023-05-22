@@ -25,16 +25,25 @@ with gr.Blocks(theme=gr.themes.Soft(), css=CSS) as app:
             "* `OPENAI_API_KEY`를 입력해주세요. 또는 `.env` 파일에 `OPENAI_API_KEY`를 설정하면, 자동으로 불러옵니다."
         )
         with gr.Row():
-            open_ai_key = gr.Textbox(
-                value=get_openai_api_key(),
-                label="OpenAI API Key",
-                type="password",
-            )
-            identifier_setup = gr.Textbox(
-                value="default",
-                label="Identifier",
-                type="text"
-            )
+            with gr.Column(scale=5):
+                with gr.Row():
+                    open_ai_key = gr.Textbox(
+                        value=get_openai_api_key(),
+                        label="OpenAI API Key",
+                        type="password",
+                    )
+                    identifier_setup = gr.Textbox(
+                        value="default",
+                        label="Identifier",
+                        type="text"
+                    )
+            with gr.Column(scale=1):
+                debug_mode = gr.CheckboxGroup(
+                    ["Debug Mode"],
+                    label="Mode",
+                    default="Normal Mode",
+                )
+
         gr.Markdown(
             "* `AI Name`, `AI Role`, `AI Goals`를 채워주세요. 또는 `Examples`에서 선택해주세요. 이후 `Start` 버튼을 누르면 태스크를 수행합니다."
         )
@@ -87,31 +96,46 @@ with gr.Blocks(theme=gr.themes.Soft(), css=CSS) as app:
                     download_btn = gr.Button("Download All Files", visible=False)
                 output_files = gr.HTML()
 
-    def start(open_ai_key, ai_name, ai_role, top_5_goals, identifier):
+    def start(open_ai_key, ai_name, ai_role, top_5_goals, identifier, debug_mode):
         postfix = uuid.uuid4().hex[-8:]
         identifier = f"{identifier}-{postfix}"
         auto_api = AutoAPI(open_ai_key, ai_name, ai_role, top_5_goals, identifier)
-        return gr.Column.update(visible=False), gr.Column.update(visible=True), auto_api, identifier
+        return gr.Column.update(visible=False), gr.Column.update(visible=True), auto_api, identifier, debug_mode
 
-    def bot_response(chat, api):
+    def bot_response(chat, api, debug_mode):
         messages = []
         for message in api.get_chatbot_response():
             message = message.replace("    ", "&nbsp;&nbsp;&nbsp;&nbsp;")
-            # print(message, "end?")
-            messages.append(f"{message}")
+            if not debug_mode:
+                if message.startswith("**WARNING"):
+                    pass
+                elif message.startswith("**Welcome"):
+                    pass
+                elif message.startswith("**NOTE"):
+                    pass
+                elif message.startswith("**workspace"):
+                    pass
+                elif message.startswith("**Using memory"):
+                    pass
+                elif message.startswith("**Using Browser"):
+                    pass
+                else:
+                    messages.append(f"{message}")
+            else:
+                messages.append(f"{message}")
             chat[-1][1] = "\n\n".join(messages) + "<br/><br/>Thinking ... (it takes a few seconds)"
             yield chat
         chat[-1][1] = "\n\n".join(messages)
         yield chat
 
-    def send_message(count, chat, api, message="Y"):
+    def send_message(count, chat, api, debug_mode, message="Y"):
         if message != "Y":
             count = 1
         for i in range(count):
             chat.append([message, None])
             yield chat, count - i
             api.send_message(message)
-            for updated_chat in bot_response(chat, api):
+            for updated_chat in bot_response(chat, api, debug_mode):
                 yield updated_chat, count - i
 
     def activate_inputs():
@@ -147,9 +171,9 @@ with gr.Blocks(theme=gr.themes.Soft(), css=CSS) as app:
     api = gr.State(None)
 
     start_btn.click(
-        start, [open_ai_key, ai_name, ai_role, top_5_goals, identifier_setup], [setup_pane, main_pane, api, identifier_main],
+        start, [open_ai_key, ai_name, ai_role, top_5_goals, identifier_setup, debug_mode], [setup_pane, main_pane, api, identifier_main, debug_mode],
     ).then(
-        bot_response, [chat_history, api], chatbot
+        bot_response, [chat_history, api, debug_mode], chatbot
     ).then(
         activate_inputs, None, [yes_btn, consecutive_yes, custom_response]
     )
@@ -157,7 +181,7 @@ with gr.Blocks(theme=gr.themes.Soft(), css=CSS) as app:
     yes_btn.click(
         deactivate_inputs, None, [yes_btn, consecutive_yes, custom_response]
     ).then(
-        send_message, [consecutive_yes, chat_history, api], [chatbot, consecutive_yes]
+        send_message, [consecutive_yes, chat_history, api, debug_mode], [chatbot, consecutive_yes]
     ).then(
         activate_inputs, None, [yes_btn, consecutive_yes, custom_response]
     )
