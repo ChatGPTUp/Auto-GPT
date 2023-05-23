@@ -6,7 +6,7 @@ sys.path.append(main_dir)
 if __name__ == "__main__":
     print(sys.argv)
     print(os.getcwd())
-    _, folder = sys.argv
+    _, folder, gpt3only = sys.argv
     from autogpt.main import run_auto_gpt
 
     run_auto_gpt(
@@ -17,7 +17,7 @@ if __name__ == "__main__":
         skip_reprompt=False,
         speak=False,
         debug=False,
-        gpt3only=False,
+        gpt3only=eval(gpt3only),
         gpt4only=False,
         memory_type=None,
         browser_name=None,
