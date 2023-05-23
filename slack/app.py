@@ -142,13 +142,6 @@ def run_autogpt_slack(user_message, options, channel, thread_ts):
     ai_settings = user_message2ai_settings(user_message)
     with open(os.path.join(workspace, "ai_settings.yaml"), "w") as f:
         f.write(ai_settings)
-    ai_settings_message = f"AutoGPT Settings\n{ai_settings.replace('api_budget: ', 'api_budget: $')}"
-    print(ai_settings_message)
-    client.chat_postMessage(
-        channel=channel,
-        text=ai_settings_message,
-        thread_ts=thread_ts
-    )
 
     # Run autogpt
     main_dir = os.path.dirname(os.getcwd())
@@ -158,6 +151,15 @@ def run_autogpt_slack(user_message, options, channel, thread_ts):
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE
     )
+
+    ai_settings_message = f"AutoGPT launched with settings:\n{ai_settings.replace('api_budget: ', 'api_budget: $')}"
+    print(ai_settings_message)
+    client.chat_postMessage(
+        channel=channel,
+        text=ai_settings_message,
+        thread_ts=thread_ts
+    )
+    
     # add to pid
     thread_ts2pids[thread_ts].append(process.pid)
     print('thread_ts2pids', thread_ts2pids)
@@ -271,14 +273,26 @@ async def slack_events(request: Request, background_tasks: BackgroundTasks):
     
     if user_message.lower() == 'stop':
         # If stop command, kill process
+        if thread_ts not in thread_ts2pids:
+            client.chat_postMessage(
+                channel=event['channel'],
+                text="AutoGPT is not launched yet.",
+                thread_ts=thread_ts
+            )
+            return JSONResponse(content="Main process is not running yet.")
         for pid in thread_ts2pids[thread_ts]:
             os.kill(pid, signal.SIGTERM)
         del thread_ts2pids[thread_ts]
         print('thread_ts2pids', thread_ts2pids)
-        return JSONResponse(content="AutoAskUp is stopped.")
+        client.chat_postMessage(
+            channel=event['channel'],
+            text="AutoGPT is stopped.",
+            thread_ts=thread_ts
+        )
+        return JSONResponse(content="AutoGPT is stopped.")
     
     background_tasks.add_task(run_autogpt_slack, user_message, options, event['channel'], thread_ts)
-    start_message = "AutoAskUp is running..."
+    start_message = "Preparing to launch AutoGPT..."
     if options['debug']:
         start_message += " (in DEBUG MODE)"
     if not options['gpt3_only']:
