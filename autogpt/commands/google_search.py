@@ -10,6 +10,9 @@ from autogpt.config import Config
 #import os
 import requests
 
+import math
+import numpy as np
+
 CFG = Config()
 from . import URL_MEMORY
 
@@ -91,7 +94,7 @@ def google_official_search(query: str, num_results: int = 10) -> str | list[str]
             url_alias = f'URL_{len(URL_MEMORY)}'
             URL_MEMORY[url_alias] = res['link']
             res['link'] = url_alias
-            res = {k:v for k,v in res.items() if k in ['title', 'link', 'snippet']}            
+            res = {k:v for k,v in res.items() if k in ['title', 'link']}
             search_results.append(res)
 
     except HttpError as e:
@@ -133,11 +136,113 @@ def safe_google_results(results: str | list) -> str:
     return safe_message
 
 @command(
-    "google_search_place",
-    "Google Search place",
-    '"place_name": "<place_name>"',
+    "get_textsearch_results_and_distances",
+    "Google place textsearch and get distance_matrix (in km)",
+    '"place_names": "<place_name_1>, <place_name_2>, ..."',
     bool(CFG.google_api_key),
 )
+def get_textsearch_results_and_distances(place_names: str, sort_by: str = "prominence") -> str:
+    api_key = CFG.google_api_key
+    place_names = [x.strip() for x in place_names.split(',')]  # 여러 장소를 리스트로 변환
+
+    candidates = []
+    for place_name in place_names:
+        url = f"https://maps.googleapis.com/maps/api/place/textsearch/json?query={place_name}&key={api_key}&rankby={sort_by}"
+        result = requests.get(url)
+        json_obj = result.json()
+
+        if json_obj['results']:  # 검색 결과가 있는 경우
+            candidate = json_obj['results'][0]  # 첫 번째 결과만 사용
+            candidate = {key:val for key, val in candidate.items() if key in [
+                'geometry', 'name', 'price_level', 'rating', 'types', 'user_ratins_total', 'formatted_address']}
+            candidate['location'] = candidate['geometry']['location']
+            #candidate['city_and_province'] = " ".join(candidate['formatted_address'].split())
+            del candidate['geometry']#, candidate['formatted_address']
+            candidates.append(candidate)
+
+    num_places = len(candidates)
+    distance_matrix = np.zeros((num_places, num_places))
+
+    for i in range(num_places):
+        for j in range(i+1, num_places):
+            place1 = candidates[i]
+            place2 = candidates[j]
+
+            lat1, lon1 = place1["location"]["lat"], place1["location"]["lng"]
+            lat2, lon2 = place2["location"]["lat"], place2["location"]["lng"]
+
+            distance = calculate_distance(lat1, lon1, lat2, lon2)
+            distance_matrix[i][j] = distance
+            distance_matrix[j][i] = distance  # 대칭성을 이용
+    
+    # Remove 'location' field from each candidate after calculating the distance
+    for candidate in candidates:
+        del candidate['location']
+    
+    distance_matrix = distance_matrix.astype(int)
+    distance_matrix_str = np.array2string(distance_matrix)
+
+    return json.dumps({"candidates": candidates, "distance_matrix": distance_matrix_str}, ensure_ascii=False)
+
+#@command(
+#    "get_search_results_and_distances",
+#    "Google place textsearch and get distance_matrix (in km)",
+#    '"place_name": "<place_name>"',
+#    bool(CFG.google_api_key),
+#)
+def get_search_results_and_distances(place_name: str, num_results: int = 10, sort_by: str = "prominence") -> str:
+    api_key = CFG.google_api_key
+    url = f"https://maps.googleapis.com/maps/api/place/textsearch/json?query={place_name}&key={api_key}&rankby={sort_by}"
+    result = requests.get(url)
+    json_obj = result.json()
+    
+    candidates = []
+    for candidate in json_obj['results'][:num_results]:
+        candidate = {key:val for key, val in candidate.items() if key in [
+            'geometry', 'name', 'price_level', 'rating', 'types', 'user_ratins_total', 'formatted_address']}
+        candidate['location'] = candidate['geometry']['location']        
+        candidate['city_and_province'] = " ".join(candidate['formatted_address'].split())
+        del candidate['geometry'], candidate['formatted_address']
+        candidates.append(candidate)
+    
+    num_places = len(candidates)
+    distance_matrix = np.zeros((num_places, num_places))
+    
+    for i in range(num_places):
+        for j in range(i+1, num_places):
+            place1 = candidates[i]
+            place2 = candidates[j]
+
+            lat1, lon1 = place1["location"]["lat"], place1["location"]["lng"]
+            lat2, lon2 = place2["location"]["lat"], place2["location"]["lng"]
+
+            distance = calculate_distance(lat1, lon1, lat2, lon2)
+            distance_matrix[i][j] = distance
+            distance_matrix[j][i] = distance  # 대칭성을 이용
+    distance_matrix = distance_matrix.astype(int)    
+    distance_matrix_str = np.array2string(distance_matrix)
+
+    return json.dumps({"candidates": candidates, "distance_matrix": distance_matrix_str}, ensure_ascii=False)
+
+# Haversine 공식을 이용해 두 점 간의 거리를 계산하는 함수
+def calculate_distance(lat1, lon1, lat2, lon2):
+    radius = 6371  # km
+
+    dlat = math.radians(lat2-lat1)
+    dlon = math.radians(lon2-lon1)
+    a = math.sin(dlat/2) * math.sin(dlat/2) + math.cos(math.radians(lat1)) \
+        * math.cos(math.radians(lat2)) * math.sin(dlon/2) * math.sin(dlon/2)
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1-a))
+    d = radius * c
+
+    return d
+
+#@command(
+#    "search_place",
+#    "Google Search place",
+#    '"place_name": "<place_name>"',
+#    bool(CFG.google_api_key),
+#)
 def google_search_place(place_name: str, num_results: int = 10) -> str:
     api_key = CFG.google_api_key
     url = f"https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input={place_name}&inputtype=textquery&fields=place_id,name&key={api_key}"
@@ -155,33 +260,79 @@ def google_search_place(place_name: str, num_results: int = 10) -> str:
         candidates.append(candidate)
     return json.dumps(candidates, ensure_ascii=False)
 
-def get_place_details(place_id):
+#@command(
+#    "get_place_details",
+#    "Get Place Details (location, ratings, address)",
+#    '"place_name": "<place_name>"',
+#    bool(CFG.google_api_key),
+#)
+def get_place_details(place_name: str) -> str:
     api_key = CFG.google_api_key
-    url = f"https://maps.googleapis.com/maps/api/place/details/json?place_id={place_id}&fields=geometry/location,rating,types,address_components&key={api_key}"
+
+    # Get place_id
+    find_place_url = f"https://maps.googleapis.com/maps/api/place/findplacefromtext/json?input={place_name}&inputtype=textquery&fields=place_id,name&key={api_key}"
+    find_place_result = requests.get(find_place_url)
+    json_obj_find_place = find_place_result.json()
+
+    # Assuming we always take the first place found
+    place_id = json_obj_find_place['candidates'][0]['place_id']
+
+    # Filter the details
+    place_details = get_place_details_from_place_id(place_id)
+    place_details['address_components'] = [comp['short_name'] for comp in place_details['address_components'][1:-2]]
+    place_details['location'] = place_details['geometry']['location']
+    del place_details['place_id'], place_details['geometry']
+
+    return json.dumps(place_details, ensure_ascii=False)
+
+def get_place_details_from_place_id(place_id):
+    api_key = CFG.google_api_key
+    fields = "name,geometry,price_level,rating,types,user_ratings_total,formatted_address"
+    url = f"https://maps.googleapis.com/maps/api/place/details/json?place_id={place_id}&fields={fields}&key={api_key}"
     result = requests.get(url)
     json_obj = result.json()
     return json_obj['result']
 
 @command(
-    "google_search_nearby_places",
-    "Google Search nearby places. You must first obtain 'latitude' and 'longitude' before calling this command.",
-    '"latitude": "<latitude>", "longitude": "<longitude>", "radius":"1000"',
+    "google_nearbysearch",
+    "Google Search nearby places with distances (in km)",
+    '"place_name": "<place_name>", "radius": "<default:1000>", "type": "<google_place_api_type_only>", "keyword": "<keyword>"',
     bool(CFG.google_api_key),
 )
-def google_search_nearby_places(latitude, longitude, radius: int=1000, num_results: int = 10) -> str:
+def google_nearbysearch(place_name: str, radius: int=1000, type: str = '', keyword: str = '',num_results: int = 10) -> str:
     api_key = CFG.google_api_key
-    url = f"https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={latitude},{longitude}&radius={radius}&key={api_key}"
-    result = requests.get(url)
-    json_obj = result.json()
+    
+    # Fetch the latitude and longitude of the place_name
+    url_textsearch = f"https://maps.googleapis.com/maps/api/place/textsearch/json?query={place_name}&key={api_key}"
+    result_textsearch = requests.get(url_textsearch)
+    json_obj_textsearch = result_textsearch.json()
+    location = json_obj_textsearch['results'][0]['geometry']['location']
+    latitude, longitude = location['lat'], location['lng']
+    
+    url_nearbysearch = f"https://maps.googleapis.com/maps/api/place/nearbysearch/json?location={latitude},{longitude}&radius={radius}&type={type}&keyword={keyword}&key={api_key}"
+    result_nearbysearch = requests.get(url_nearbysearch)
+    json_obj_nearbysearch = result_nearbysearch.json()
     
     candidates = []
-    for candidate in json_obj['results'][:num_results]:
+    for candidate in json_obj_nearbysearch['results'][:num_results]:
         place_id = candidate['place_id']  # Get the place ID of the first result
-        place_details = get_place_details(place_id)
-        candidate = {k:v for k, v in candidate.items() if k in ['name', 'place_id']}
-        place_details['address_components'] = [comp['short_name'] for comp in place_details['address_components'][1:-2]]
-        place_details['location'] = place_details['geometry']['location']
-        candidate.update(place_details)
-        del candidate['place_id'], candidate['geometry']
+        candidate = get_place_details_from_place_id(place_id)        
         candidates.append(candidate)
-    return json.dumps(candidates, ensure_ascii=False)
+    
+    # Calculate distance vector
+    num_places = len(candidates)
+    distances = np.zeros(num_places)
+    
+    for i in range(num_places):
+        place = candidates[i]
+        lat, lon = place["geometry"]["location"]["lat"], place["geometry"]["location"]["lng"]
+        distance = calculate_distance(latitude, longitude, lat, lon)
+        distances[i] = distance
+        
+    # Remove 'location' field from each candidate after calculating the distance
+    for candidate in candidates:
+        del candidate['geometry']
+        
+    distances_str = np.array2string(distances, precision=1, floatmode='fixed')
+
+    return json.dumps({"candidates": candidates, "distances": distances_str}, ensure_ascii=False)
