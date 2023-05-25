@@ -321,10 +321,20 @@ class Agent:
         if "directory" in command_args and command_args["directory"] in {"", "/"}:
             command_args["directory"] = str(self.workspace.root)
         else:
-            for pathlike in ["filename", "directory", "clone_path"]:
+            for pathlike in ["directory", "clone_path"]:
                 if pathlike in command_args:
                     command_args[pathlike] = str(
                         self.workspace.get_path(command_args[pathlike])
+                    )
+            for command_arg in command_args:
+                if 'filenames' in command_arg:
+                    command_args[command_arg] = [
+                        str(self.workspace.get_path(filename))
+                        for filename in command_args[command_arg]
+                    ]
+                elif 'filename' in command_arg:
+                    command_args[command_arg] = str(
+                        self.workspace.get_path(command_args[command_arg])
                     )
         return command_args
 
