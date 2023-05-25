@@ -31,7 +31,7 @@ client.retry_handlers.append(rate_limit_handler)
 
 thread_ts2pids = defaultdict(list)
 
-def user_message2ai_settings(user_message, api_budget=1, infer=True):
+def user_message2ai_settings(user_message, api_budget=1, infer=False):
     if infer:
         prompt = f"""
 An AI bot will handle given request. Provide name, role and goals for the AI assistant in JSON format with following keys:
@@ -91,10 +91,13 @@ ai_goals:
 api_budget: {api_budget}
 """
     else:
+        user_messages = user_message.split('\n')
+        goals = [f"- {user_message}" for user_message in user_messages if user_message != ""]
+        goals = '\n'.join(goals)
         ai_settings = f"""ai_name: AutoAskUp
 ai_role: an AI that achieves below GOALS.
 ai_goals:
-- {user_message}
+{goals}
 - Terminate if above goal is achieved.
 api_budget: {api_budget}"""
     return ai_settings
@@ -119,7 +122,8 @@ def process_user_message(user_message):
     # Extract options from message
     options = {
         'debug': False,
-        'gpt3_only': True
+        'gpt3_only': True,
+        'api_budget': 1,
     }
     if user_message.startswith('?'):
         options['debug'] = True
@@ -127,6 +131,12 @@ def process_user_message(user_message):
     if user_message.startswith('!'):
         options['gpt3_only'] = False
         user_message = user_message.replace('!', '').strip()
+
+    match = re.search(r'\$(\d+(\.\d+)?)\s*$', user_message)
+    if match:
+        options['api_budget'] = min(5, float(match.group(1)))
+        user_message = user_message[:user_message.rfind(match.group(0))].strip()
+
     return user_message, options
 
 def run_autogpt_slack(user_message, options, channel, thread_ts):
@@ -139,7 +149,7 @@ def run_autogpt_slack(user_message, options, channel, thread_ts):
     workspace_name = date_str + "_" + random_str
     workspace = os.path.join(os.getcwd(), 'auto_gpt_workspace', workspace_name)
     os.makedirs(workspace, exist_ok=True)
-    ai_settings = user_message2ai_settings(user_message)
+    ai_settings = user_message2ai_settings(user_message, options['api_budget'])
     with open(os.path.join(workspace, "ai_settings.yaml"), "w") as f:
         f.write(ai_settings)
 
