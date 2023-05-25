@@ -64,7 +64,6 @@ def browse_website_and_extract_related_links(url: str, question: str) -> str:
 
     try:
         logger.typewriter_log("BROWSING: ", Fore.CYAN, url)
-        print(f'BROWSING: {url}')
         html_content, driver = get_html_content_with_selenium(url)
     except WebDriverException as e:
         msg = e.msg.split("\n")[0]
