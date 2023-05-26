@@ -141,7 +141,8 @@ def run_auto_gpt(
         "autogpt.app",
         "autogpt.commands.task_statuses",
         "autogpt.commands.places",
-        "autogpt.commands.generate_text"
+        "autogpt.commands.generate_text",
+        "autogpt.commands.news_search"
     ]
     logger.debug(
         f"The following command categories are disabled: {cfg.disabled_command_categories}"
