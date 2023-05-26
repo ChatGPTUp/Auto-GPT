@@ -23,6 +23,7 @@ def execute_python_file(filename: str) -> str:
     Returns:
         str: The output of the file
     """
+    filename = os.path.join(CFG.workspace_path, filename)
     logger.info(f"Executing file '{filename}'")
 
     if not filename.endswith(".py"):
