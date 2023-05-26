@@ -156,7 +156,7 @@ class Agent:
                     if cfg.speak_mode:
                         say_text(f"I want to execute {command_name}")
 
-                    arguments = self._resolve_pathlike_command_args(arguments)
+                    # arguments = self._resolve_pathlike_command_args(arguments)
 
                 except Exception as e:
                     logger.error("Error: \n", str(e))

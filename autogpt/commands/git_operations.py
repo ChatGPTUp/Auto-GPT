@@ -1,4 +1,5 @@
 """Git operations for autogpt"""
+import os
 from git.repo import Repo
 
 from autogpt.commands.command import command
@@ -26,6 +27,7 @@ def clone_repository(url: str, clone_path: str) -> str:
     Returns:
         str: The result of the clone operation.
     """
+    clone_path = os.path.join(CFG.workspace_path, clone_path)
     split_url = url.split("//")
     auth_repo_url = f"//{CFG.github_username}:{CFG.github_api_key}@".join(split_url)
     try:
