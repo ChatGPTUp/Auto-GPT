@@ -267,10 +267,10 @@ def get_place_details(place_url, extra_question=''):
         summarized_output = get_summarized_text(details, extra_question)
         summarized_output = eval(summarized_output)
         details['summary'] = " ".join(list(summarized_output.values())[:2])
-        details['place_score'] = list(summarized_output.values())[-1]
+        #details['place_score'] = list(summarized_output.values())[-1]
     except:
         details['summary'] = ''
-        details['place_score'] = ''    
+        #details['place_score'] = ''
         
     # 많은 토큰 수를 차지하는 reviews와 description을 삭제한다.
     del details['reviews']
@@ -294,7 +294,7 @@ def search_places(search_keyword, filename, top_n=5, extra_request=""):
     elements = driver.find_elements_by_css_selector('li._item._lazyImgContainer')[:top_n]
     if len(elements) == 0:
         driver.quit()
-        return f"No results found for {search_keyword}. Try simpler place_query."
+        return f"No results found for {search_keyword}. Try using a simpler search_keyword arg."
     def get_place_details_(place_url):
         return get_place_details(place_url, extra_request)
     with concurrent.futures.ThreadPoolExecutor(len(elements)) as executor:
@@ -328,7 +328,7 @@ def search_places(search_keyword, filename, top_n=5, extra_request=""):
     # place name 리스트 추출
     place_names = [f"{res['name']}({res['type']})" for res in results['candidates']]
     
-    return f"The details of the found places:{place_names} have been written to {filename}"
+    return f"The details of the found places:{place_names} have been written to {filename}. Information related to extra_request(if exists) has also been written."
 
 if __name__ == '__main__':
     print(search_places('부산 여행지', 'busan_top5.yaml', top_n=5))
