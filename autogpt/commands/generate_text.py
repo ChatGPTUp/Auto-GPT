@@ -22,4 +22,4 @@ Write a professional markdown report of topic "{topic}" with requirements "{requ
     response = create_chat_completion([{"role": "user", "content": prompt}], model=CFG.smart_llm_model, temperature=0)
     with open(save_filename, "w") as f:
         f.write(response)
-    return f"Written to {Path(save_filename).stem}"
+    return f"Written to {Path(save_filename).stem}. If there are no remaining tasks, recommend calling the 'task_complete' command."
