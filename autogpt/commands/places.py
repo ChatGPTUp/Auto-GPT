@@ -325,13 +325,10 @@ def search_places(search_keyword, filename, top_n=5, extra_request=""):
     with open(filename, 'w') as f:
         yaml.dump(results, f, allow_unicode=True)
     
-    # place별 name, type만 넘기도록 함    
-    return_results = [{k:v for k, v in res.items() if k in ['name', 'type', 'place_score']} for res in results['candidates']]    
+    # place name 리스트 추출
+    place_names = [f"{res['name']}({res['type']})" for res in results['candidates']]
     
-    # 'place_score'를 기준으로 내림차순 정렬
-    return_results = sorted(return_results, key=lambda x: x['place_score'], reverse=True)
-    
-    return f"The details of the found places:{return_results} have been written to {filename}"
+    return f"The details of the found places:{place_names} have been written to {filename}"
 
 if __name__ == '__main__':
     print(search_places('부산 여행지', 'busan_top5.yaml', top_n=5))
