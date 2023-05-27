@@ -153,6 +153,7 @@ def read_file(filename: str) -> str:
     Returns:
         str: The contents of the file
     """
+    filename = os.path.join(CFG.workspace_path, filename)
     try:
         charset_match = charset_normalizer.from_path(filename).best()
         encoding = charset_match.encoding
@@ -207,6 +208,7 @@ def write_to_file(filename: str, text: str) -> str:
     Returns:
         str: A message indicating success or failure
     """
+    filename = os.path.join(CFG.workspace_path, filename)
     checksum = text_checksum(text)
     if is_duplicate_operation("write", filename, checksum):
         return "Error: File has already been updated."
@@ -235,6 +237,7 @@ def append_to_file(filename: str, text: str, should_log: bool = True) -> str:
     Returns:
         str: A message indicating success or failure
     """
+    filename = os.path.join(CFG.workspace_path, filename)
     try:
         directory = os.path.dirname(filename)
         os.makedirs(directory, exist_ok=True)
@@ -261,6 +264,7 @@ def delete_file(filename: str) -> str:
     Returns:
         str: A message indicating success or failure
     """
+    filename = os.path.join(CFG.workspace_path, filename)
     if is_duplicate_operation("delete", filename):
         return "Error: File has already been deleted."
     try:
@@ -281,6 +285,7 @@ def list_files(directory: str) -> list[str]:
     Returns:
         list[str]: A list of files found in the directory
     """
+    directory = os.path.join(CFG.workspace_path, directory)
     found_files = []
 
     for root, _, files in os.walk(directory):
@@ -308,6 +313,7 @@ def download_file(url, filename):
         url (str): URL of the file to download
         filename (str): Filename to save the file as
     """
+    filename = os.path.join(CFG.workspace_path, filename)
     try:
         directory = os.path.dirname(filename)
         os.makedirs(directory, exist_ok=True)

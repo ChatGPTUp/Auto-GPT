@@ -1,5 +1,6 @@
 """Commands for converting audio to text."""
 import json
+import os
 
 import requests
 
@@ -26,6 +27,7 @@ def read_audio_from_file(filename: str) -> str:
     Returns:
         str: The text from the audio
     """
+    filename = os.path.join(CFG.workspace_path, filename)
     with open(filename, "rb") as audio_file:
         audio = audio_file.read()
     return read_audio(audio)
