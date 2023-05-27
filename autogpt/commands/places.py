@@ -134,25 +134,6 @@ def summarize_reviews(reviews, query):
     response = get_chatgpt_response([message], model='gpt-3.5-turbo', temperature=0)['content']
     return response
 
-def get_reviews2(soup, query):
-    sections = soup.find_all('div', class_='place_section')
-    review_section = None
-    for section in sections:
-        header = section.find(class_='place_section_header')
-        if header and header.find(string=True, recursive=False) == '리뷰':
-            review_section = section
-            break
-    if review_section:
-        reviews = []
-        li_elements = review_section.find('div', {'class': 'place_section_content'}).find('ul').find_all('li')
-        for li in li_elements[:5]:
-            review_text_element = li.find('a', class_='xHaT3').find('span')
-            if review_text_element:  # 'span' 태그가 존재하면
-                review = review_text_element.get_text(strip=True)
-                reviews.append(review)
-        if len(reviews) > 0:            
-            reviews = summarize_reviews(reviews, query)
-            return reviews
 
 def summarize_info(info):
     if not info:
@@ -166,74 +147,21 @@ Key Information:
     response = get_chatgpt_response([{'role': 'user', 'content': prompt}], model='gpt-3.5-turbo', temperature=0)['content']
     return response
 
-def get_place_details_org(place_url):
-    print(f'BROWSING: {place_url}')
-    driver = get_selenium_driver()
-    details = {
-        'name': None,
-        'url': place_url,
-        'type': None,
-        'info': None,
-        'rating': None,
-        'n_visitor_reviews': None,
-        'n_blog_reviews': None,
-        'reviews': None,
-    }
-    
-    driver.get(place_url)
-    time.sleep(2)
-    place_type = driver.current_url.split('/')[3]
-    soup = BeautifulSoup(driver.page_source, 'html.parser')
-    # name / type
-    spans = soup.find('div', {'id': '_title'}).find_all('span')
-    details['name'] = spans[0].text
-    if len(spans) > 1:
-        details['type'] = spans[1].text
-    # info
-    info_section = soup.find_all('div', {'class': 'place_section_content'})[0]
-    divs = info_section.find('div').find_all('div', recursive=False)
-    info = [' '.join(div.find_all(string=True, recursive=True))[:100] for div in divs]
-    #if do_summarize_info:
-    #    info = summarize_info(info)
-    details['info'] = info
-    # ratings
-    for span in soup.find('div', {'class': 'place_section'}).find_all('span'):
-        text = span.text
-        if text.startswith('별점') and (span.find('em') is not None):
-            details['rating'] = text.replace('별점', '').strip()
-        if text.startswith('방문자리뷰') and (span.find('em') is not None):
-            details['n_visitor_reviews'] = text.replace('방문자리뷰', '').strip()
-        elif text.startswith('블로그리뷰') and (span.find('em') is not None):
-            details['n_blog_reviews'] = text.replace('블로그리뷰', '').strip()
-    # reviews
-    driver.get(f'{place_url}/review/visitor')
-    time.sleep(2)
-    soup = BeautifulSoup(driver.page_source, 'html.parser')
-    reviews = get_reviews(soup)
-    details['reviews'] = reviews
-    
-    driver.get(f'{place_url}/photo')
-    time.sleep(2)
-    if 'photo' in driver.current_url:
-        soup = BeautifulSoup(driver.page_source, 'html.parser')
-        photo = soup.find('div', {'class': 'place_section_content'}).find('img')
-        photo = shorten_url(photo['src'])
-        details['photo'] = photo
-    driver.quit()
-    return details
+def get_summarized_text(place, extra_question=''):
+    place['extra_questoin'] = extra_question
+    prompt = f""" {place}
 
-def places2txt(places):
-    texts = []
-    for place in places:
-        place_texts = []
-        for k, v in place.items():
-            if isinstance(v, list):
-                v = '\n'.join(v)
-                place_texts.append(f'{k}:\n{v}')
-            else:
-                place_texts.append(f'{k}: {v}')
-        texts.append("\n".join(place_texts))
-    return "\n\n".join(texts)
+Please output using the following format in English:
+{{
+    "description_reviews_rating_summary_in_brief_polite": "<summary>",
+    "answer_to_extra_question_if_exists": "<answer>",
+    "satisfication_score_to_extra_question": "<1-5>"
+}}
+"""
+    del place['extra_questoin']
+    #print(prompt)
+    response = get_chatgpt_response([{'role': 'user', 'content': prompt}], model='gpt-3.5-turbo', temperature=0)['content']    
+    return response
 
 
 def get_reviews(soup, n_res=10):
@@ -241,31 +169,19 @@ def get_reviews(soup, n_res=10):
     
     reviews = soup.find_all('li', {'class': 'YeINN'})
     
-    for review in reviews[:10]:
-        review_dict = {}
-
-        # 사용자 이름 추출
-        #username = review.find('div', {'class': 'sBWyy'}).text
-        #review_dict['username'] = username
-
+    for i, review in enumerate(reviews[:n_res]):
         # 리뷰 텍스트 추출
-        review_text = review.find('span', {'class': 'zPfVt'}).text
-        review_text = " ".join(review_text.split())
-        #review_dict['review_text'] = " ".join(review_text.split())
-        
-        # 이미지 URL 추출
-        #images = review.find_all('div', {'class': 'K0PDV _img fKa0W'})
-        #image_urls = [shorten_url(image['style'].split('"')[1]) for image in images]
-        #review_dict['image_urls'] = image_urls
-
-        # 추가로 필요한 정보를 추출하는 코드를 여기에 작성하실 수 있습니다.
-
-        reviews_list.append(review_text)
+        try:
+            review_text = review.find('span', {'class': 'zPfVt'}).text
+            review_text = " ".join(review_text.split())
+            reviews_list.append(review_text)
+        except:
+            pass
     
     return reviews_list
 
 
-def get_place_details(place_url):
+def get_place_details(place_url, extra_question=''):
     print(f'BROWSING: {place_url}')
     driver = get_selenium_driver()
     details = {
@@ -301,7 +217,7 @@ def get_place_details(place_url):
     details['address'] = soup.select_one('div.O8qbU.tQY7D div.vV_z_ a.PkgBl span.LDgIH').text if soup.select_one('div.O8qbU.tQY7D div.vV_z_ a.PkgBl span.LDgIH') else None
     
     # 운영시간 추출    
-    details['operating_hours'] = soup.select_one('.O8qbU.pSavy .A_cdD .U7pYf span.place_blind').text if soup.select_one('.O8qbU.pSavy .A_cdD .U7pYf span.place_blind') else None
+    #details['operating_hours'] = soup.select_one('.O8qbU.pSavy .A_cdD .U7pYf span.place_blind').text if soup.select_one('.O8qbU.pSavy .A_cdD .U7pYf span.place_blind') else None
         
     # street_view_url 추출
     #details['street_view_url'] = soup.select_one('span.S8peq a[href^="https://app.map.naver.com/panorama/"]')['href'] if soup.select_one('span.S8peq a[href^="https://app.map.naver.com/panorama/"]') else None
@@ -342,19 +258,35 @@ def get_place_details(place_url):
     time.sleep(2)
     if 'photo' in driver.current_url:
         soup = BeautifulSoup(driver.page_source, 'html.parser')
-        photo = soup.find('div', {'class': 'place_section_content'}).find('img')
+        photo = soup.find('div', {'class': 'place_section_content'}).find('img')        
         photo = shorten_url(photo['src'])
-        details['photo'] = photo   
-
+        details['photo'] = photo
+        
+    # summarize
+    try:
+        summarized_output = get_summarized_text(details, extra_question)
+        summarized_output = eval(summarized_output)
+        details['summary'] = " ".join(list(summarized_output.values())[:2])
+        details['place_score'] = list(summarized_output.values())[-1]
+    except:
+        details['summary'] = ''
+        details['place_score'] = ''    
+        
+    # 많은 토큰 수를 차지하는 reviews와 description을 삭제한다.
+    del details['reviews']
+    if 'description' in details:
+        del details['description']
+    
     return details
 
 @command(
     "search_places",
     "Search locations and destinations, returning top_n results, calculate their distance matrix in km, and save to file.",
-    '"search_keyword": "<Examples:강릉 여행지, 제주 가볼만한 곳, 신림 근처; avoid ranking numbers; use top_n arg>", '
-    '"filename": "<yaml_filename>", "top_n": "<default:10>"',
+    '"search_keyword": "<Examples:강릉 여행지, 제주 가볼만한 곳, 신림 근처, 고기 맛집; avoid ranking numbers; instead use top_n arg>", '
+    '"filename": "<yaml_filename>", "top_n": "<default:10>", "extra_request": "<Examples:뷰 좋은 곳, 주차 가능한가요?>"',
 )
-def search_places(search_keyword, filename, top_n=5):    
+def search_places(search_keyword, filename, top_n=5, extra_request=""):
+    top_n = int(top_n)
     driver = get_selenium_driver()
     naver_map_search_url = f'https://m.map.naver.com/search2/search.naver?query={search_keyword}'
     driver.get(naver_map_search_url)
@@ -364,7 +296,7 @@ def search_places(search_keyword, filename, top_n=5):
         driver.quit()
         return f"No results found for {search_keyword}. Try simpler place_query."
     def get_place_details_(place_url):
-        return get_place_details(place_url)
+        return get_place_details(place_url, extra_request)
     with concurrent.futures.ThreadPoolExecutor(len(elements)) as executor:
         results = list(executor.map(get_place_details_, [(f"https://m.place.naver.com/place/{element.get_attribute('data-id')}") for element in elements]))    
     #results = []
@@ -393,13 +325,19 @@ def search_places(search_keyword, filename, top_n=5):
     with open(filename, 'w') as f:
         yaml.dump(results, f, allow_unicode=True)
     
-    # place별 name, type만 넘기도록 함
-    #{k:v for k, v in results.items() if k in ['name', 'type']}
-    return_results = [{k:v for k, v in res.items() if k in ['name', 'type']} for res in results['candidates']]    
+    # place별 name, type만 넘기도록 함    
+    return_results = [{k:v for k, v in res.items() if k in ['name', 'type', 'place_score']} for res in results['candidates']]    
+    
+    # 'place_score'를 기준으로 내림차순 정렬
+    return_results = sorted(return_results, key=lambda x: x['place_score'], reverse=True)
+    
     return f"The details of the found places:{return_results} have been written to {filename}"
 
 if __name__ == '__main__':
-    print(search_places('속초 맛집', '속초맛집.yaml'))
+    print(search_places('부산 여행지', 'busan_top5.yaml', top_n=5))
+    
+    #get_place_details('https://m.place.naver.com/place/11555552')
+    #get_place_details('https://m.place.naver.com/place/1586994430')
     
     #get_place_details('https://m.place.naver.com/place/37942980')
     #get_place_details('https://m.place.naver.com/place/11658148')
