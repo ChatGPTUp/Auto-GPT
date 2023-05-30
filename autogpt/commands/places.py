@@ -236,7 +236,10 @@ def search_places(search_keyword, filename, top_n=5, search_details=""):
     # place name 리스트 추출
     place_names = [f"{res['name']}({res['type']})" for res in results['candidates']]
     
-    return_msg = f"The details of the found places:{place_names} have been written to {filename}. Information related to extra_request(if exists) has also been written."
+    return_msg = (
+        f"The details of the found places:{place_names} have been written to {filename}. Information related to extra_request(if exists) has also been written."
+        f" Please don't directly read {filename}. It could lead to a significant increase in our costs."
+    )
     if len(place_names) < top_n:
         return_msg += f' The number of found places is {len(place_names)}, which is less than {top_n}. By retrying this command with a simpler search keyword, you may find more places.'
     return return_msg
