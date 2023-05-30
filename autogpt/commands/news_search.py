@@ -134,7 +134,7 @@ def data2report(data, urls):
 
 @command(
     "news_search",
-    "Search news with keyword and save report",
+    "Search news articles with keyword and save report",
     '"keyword": "<keyword>", "goal": "<goal to achieve via searching>", "filename": "<filename to save report>"',
 )
 def news_search(keyword, goal, filename):

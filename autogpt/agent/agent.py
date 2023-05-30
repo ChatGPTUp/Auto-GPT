@@ -261,7 +261,7 @@ class Agent:
                 
             # log used budget
             api_manager = ApiManager()
-            logger.typewriter_log("$ SPENT: ", Fore.YELLOW, str(round(api_manager.get_total_cost(), 5)))
+            logger.typewriter_log("$ SPENT: ", Fore.CYAN, str(round(api_manager.get_total_cost(), 5)))
 
             # Execute command
             if command_name is not None and command_name.lower().startswith("error"):
@@ -316,6 +316,10 @@ class Agent:
                 logger.typewriter_log(
                     "SYSTEM: ", Fore.YELLOW, "Unable to execute command"
                 )
+
+            if api_manager.total_budget and (api_manager.get_total_cost() > api_manager.total_budget):
+                logger.typewriter_log("Budget exceeded. Exiting...", Fore.RED, "")
+                quit()
             
     def _resolve_pathlike_command_args(self, command_args):
         if "directory" in command_args and command_args["directory"] in {"", "/"}:

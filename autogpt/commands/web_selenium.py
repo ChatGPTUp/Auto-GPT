@@ -1,6 +1,7 @@
 """Selenium web scraping module."""
 from __future__ import annotations
 
+import os
 import logging
 from pathlib import Path
 from sys import platform
@@ -81,9 +82,9 @@ def browse_website_and_extract_related_links(url: str, question: str) -> str:
 @command(
     "browse_website_and_extract_related_text",
     "Browse website and extract related text",
-    '"url": "<url>", "question": "<what_you_want_to_find_on_website>"',
+    '"url": "<url>", "question": "<what_you_want_to_find_on_website>, "filename": "<filename to save the text to>"',
 )
-def browse_website_and_extract_related_text(url: str, question: str) -> str:    
+def browse_website_and_extract_related_text(url: str, question: str, filename: str) -> str:    
     """Browse a website and return the hyperlinks related to the question
 
     Args:
@@ -114,15 +115,19 @@ def browse_website_and_extract_related_text(url: str, question: str) -> str:
 
     close_browser(driver)
 
-    return summary_text
+    with open(os.path.join(CFG.workspace_path, filename), "w") as f:
+        f.write(summary_text)
+    return_msg = f"Wrote following summary to {filename}:\n{summary_text}"
+
+    return return_msg
 
 
 @command(
     "get_webpage_text_summary",
     "Get webpage text summary",
-    '"url": "<url>", "question": "<question>"',
+    '"url": "<url>", "question": "<question>", "filename": "<filename to save the summary to>"',
 )
-def get_webpage_text_summary(url: str, question: str, max_len=3500) -> str:
+def get_webpage_text_summary(url: str, question: str, filename: str, max_len=3500) -> str:
     global URL_MEMORY
     if url in URL_MEMORY:
         url = URL_MEMORY[url]
@@ -150,7 +155,13 @@ def get_webpage_text_summary(url: str, question: str, max_len=3500) -> str:
     resp = create_chat_completion(
         model=CFG.fast_llm_model,
         messages=[{"role":"user", "content":request_msg}])
-    return f'Webpage summary: {resp}  '
+    
+    with open(os.path.join(CFG.workspace_path, filename), "w") as f:
+        f.write(resp)
+
+    return_msg = f'Wrote following webpage summary to {filename}:\n{resp}'
+
+    return return_msg
 
 
 def get_header_text_link_pairs(html_content, base_url='http:'):

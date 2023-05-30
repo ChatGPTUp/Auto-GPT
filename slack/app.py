@@ -232,15 +232,18 @@ def run_autogpt_slack(user_message, options, channel, thread_ts):
         print(line.decode().strip())
 
     # Upload files to slack
-    for fname in os.listdir(workspace):
-        if fname not in ['ai_settings.yaml', 'auto-gpt.json', 'file_logger.txt']:
-            file = os.path.join(workspace, fname)
-            upload_text_file = client.files_upload(
-                channels=channel,
-                thread_ts=thread_ts,
-                title=fname,
-                file=file,
-            )
+    for root, dirs, fnames in os.walk(workspace):
+        for fname in fnames:
+            # Construct the full file path
+            file = os.path.join(root, fname)
+            if fname not in ['ai_settings.yaml', 'auto-gpt.json', 'file_logger.txt']:
+                file = os.path.join(root, fname)
+                upload_text_file = client.files_upload(
+                    channels=channel,
+                    thread_ts=thread_ts,
+                    title=fname,
+                    file=file,
+                )
 
     # Send $ spent message to slack
     client.chat_postMessage(
@@ -318,4 +321,4 @@ async def slack_events(request: Request, background_tasks: BackgroundTasks):
 async def index():
     return 'AutoAskUp'
 
-# nohup uvicorn app:app --host 0.0.0.0 --port 30207 --reload &
+# nohup uvicorn app:app --host 0.0.0.0 --port 30207 &
