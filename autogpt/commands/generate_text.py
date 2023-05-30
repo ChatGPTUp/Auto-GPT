@@ -34,7 +34,7 @@ def translate_md(md, language):
         return translate_section(section, language)
     with concurrent.futures.ThreadPoolExecutor() as executor:
         translated_sections = list(executor.map(translate_section_, sections))
-    translated = "\n".join(translated_sections)
+    translated = "\n\n".join(translated_sections)
     return translated
 
 def save_md_pdf(report, save_filename):
@@ -72,7 +72,7 @@ Write a professional markdown report of topic "{topic}" with requirements "{requ
             ko_report = translate_md(en_report, "ko")
             save_md_pdf(ko_report, save_filename.replace(".md", "_ko.md"))
 
-    return f"Wrote report at {save_filename}. If there are no remaining tasks, recommend calling the 'task_complete' command."
+    return f"Wrote report at {save_filename}. If there are no remaining tasks, recommend calling the 'task_complete' command. Please don't directly read {save_filename}. It could lead to a significant increase in our costs."
 
 
 def markdown_to_pdf(markdown_file, pdf_file):
