@@ -215,7 +215,7 @@ def urls2report(urls, goal, filename):
     # with concurrent.futures.ProcessPoolExecutor() as executor:
     #     doc_dicts = list(executor.map(get_doc_from_url, urls))
     doc_dicts = [get_doc_from_url(url) for url in urls]
-    doc_dicts, urls = zip(*[(doc_dict, url) for doc_dict, url in zip(doc_dicts, urls) if doc_dict is not None])
+    doc_dicts, urls = zip(*[(doc_dict, url) for doc_dict, url in zip(doc_dicts, urls) if (doc_dict is not None) and (len(doc_dict['text']) > 0)])
     titles = [doc_dict['title'] for doc_dict in doc_dicts]
     docs = [doc_dict['text'] for doc_dict in doc_dicts]
     def summarize_doc_(doc):
