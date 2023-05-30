@@ -10,6 +10,10 @@ from autogpt.commands.command import command
 from autogpt.llm.llm_utils import create_chat_completion
 from autogpt.config import Config
 
+import os
+import re
+import concurrent.futures
+
 CFG = Config()
 
 def count_tokens(text):
