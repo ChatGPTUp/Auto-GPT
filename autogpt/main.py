@@ -132,17 +132,17 @@ def run_auto_gpt(
         #"autogpt.commands.execute_code",
         "autogpt.commands.file_operations",
         #"autogpt.commands.git_operations",
-        "autogpt.commands.google_search",
+        # "autogpt.commands.google_search",
         #"autogpt.commands.image_gen",
         #"autogpt.commands.improve_code",
         #"autogpt.commands.twitter",
-        "autogpt.commands.web_selenium",
+        # "autogpt.commands.web_selenium",
         "autogpt.commands.write_tests",
         "autogpt.app",
         "autogpt.commands.task_statuses",
         "autogpt.commands.places",
         "autogpt.commands.generate_text",
-        "autogpt.commands.news_search"
+        "autogpt.commands.search"
     ]
     logger.debug(
         f"The following command categories are disabled: {cfg.disabled_command_categories}"
