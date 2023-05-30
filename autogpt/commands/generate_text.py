@@ -34,7 +34,7 @@ def translate_md(md, language):
         return translate_section(section, language)
     with concurrent.futures.ThreadPoolExecutor() as executor:
         translated_sections = list(executor.map(translate_section_, sections))
-    translated = "\n".join(translated_sections)
+    translated = "\n\n".join(translated_sections)
     return translated
 
 def save_md_pdf(report, save_filename):
