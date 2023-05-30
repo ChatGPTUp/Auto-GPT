@@ -47,10 +47,13 @@ def count_tokens(text):
     return len(tokens)
 
 def split_text(text, max_tokens=500, overlap=0):
+    assert overlap < max_tokens
     tokenizer = tiktoken.get_encoding("cl100k_base")
     tokens = tokenizer.encode(text)
     sid = 0
     splitted = []
+    if len(tokens) < overlap:
+        return [text]
     while True:
         if sid + overlap >= len(tokens):
             break
@@ -159,7 +162,7 @@ def summarize_doc(doc, goal, chunk_size=3000, chunk_overlap=10, max_chunks=5):
             summaries = executor.map(summarize_chunk_, chunks)
         summary = "\n".join(summaries)
         chunks = split_text(summary, max_tokens=chunk_size, overlap=chunk_overlap)
-    summary = summarize_chunk_(chunks[0])        
+    summary = summarize_chunk_(chunks[0])
     return summary
 
 def generate_data(titles, summaries, goal):
