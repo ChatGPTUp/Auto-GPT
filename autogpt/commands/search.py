@@ -18,6 +18,8 @@ from autogpt.commands.command import command
 from autogpt.config import Config
 from autogpt.llm.llm_utils import create_chat_completion
 
+import yaml
+
 CFG = Config()
 if CFG.workspace_path is None:
     CFG.workspace_path = Path.cwd()
@@ -232,6 +234,24 @@ def urls2report(urls, goal, filename):
     feedback = feedback_info("\n".join([f"- {item['key_information']} {item['reference_ids']}" for item in data]), goal)
     return f"Wrote report at {filename}. \n {feedback}"
 
+def urls2summary(urls, goal, filename):
+    doc_dicts = [get_doc_from_url(url) for url in urls]
+    doc_dicts, urls = zip(*[(doc_dict, url) for doc_dict, url in zip(doc_dicts, urls) if (doc_dict is not None) and (len(doc_dict['text']) > 0)])
+    titles = [doc_dict['title'] for doc_dict in doc_dicts]
+    docs = [doc_dict['text'] for doc_dict in doc_dicts]
+    def summarize_doc_(doc):
+        return summarize_doc(doc, goal)
+    with concurrent.futures.ThreadPoolExecutor(len(docs)) as executor:
+        summaries = list(executor.map(summarize_doc_, docs))
+    
+    #summirized_res = [{'summary':summary, 'url':url} for summary, url in zip(summaries, urls)]
+    summirized_res = [{'title':title, 'summary':summary} for summary, title in zip(summaries, titles)]
+    
+    with open(os.path.join(CFG.workspace_path, filename), "w") as f:
+        yaml.dump(summirized_res, f, allow_unicode=True)
+    feedback = feedback_info(f'{summirized_res}', goal)
+    return f"Wrote report at {filename}. \n {feedback}"
+
 @command(
     "news_search",
     "Search news articles with keyword and save report",
@@ -239,7 +259,7 @@ def urls2report(urls, goal, filename):
 )
 def news_search(keyword, goal, filename):
     urls = get_urls(keyword, 'news', goal)
-    return urls2report(urls, goal, filename)
+    return urls2summary(urls, goal, filename) + " If you feel the information is not sufficient, recommend calling google."
 
 @command(
     "google",
@@ -248,4 +268,4 @@ def news_search(keyword, goal, filename):
 )
 def google(keyword, goal, filename):
     urls = get_urls(keyword, 'text', goal)
-    return urls2report(urls, goal, filename)
+    return urls2summary(urls, goal, filename) + " If you feel the information is not sufficient, recommend calling news_search."
