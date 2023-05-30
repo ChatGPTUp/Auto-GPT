@@ -87,7 +87,7 @@ ai_name: {data['ai_name']}
 ai_role: {data['ai_role']}
 ai_goals:
 {ai_goals_str}
-- Terminate if above goals are achieved.
+- Make sure to write a report
 api_budget: {api_budget}
 """
     else:
@@ -98,7 +98,7 @@ api_budget: {api_budget}
 ai_role: an AI that achieves below GOALS.
 ai_goals:
 {goals}
-- Terminate if above goal is achieved.
+- Make sure to write a report
 api_budget: {api_budget}"""
     return ai_settings
 
