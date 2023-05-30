@@ -25,75 +25,17 @@ import numpy as np
 import sys
 sys.path.append('.')
 from autogpt.commands.command import command
+from autogpt.config import Config
+from autogpt.llm.llm_utils import create_chat_completion
 
-load_dotenv('../.env')
-openai.api_key = os.environ.get("OPENAI_API_KEY")
-
-
-MODELS_INFO = {
-    'gpt-3.5-turbo': {'max_tokens': 4096, 'pricing': 0.002/1000, 'tokenizer': tiktoken.get_encoding("cl100k_base"), 'tokens_per_message': 5},
-    'gpt-4': {'max_tokens': 4096, 'pricing': 0.03/1000, 'tokenizer': tiktoken.get_encoding("cl100k_base"), 'tokens_per_message': 5},
-}
+CFG = Config()
+if CFG.workspace_path is None:
+    CFG.workspace_path = Path.cwd()
 
 def shorten_url(url):
     apiurl = f"http://tinyurl.com/api-create.php?url={url}"
     response = requests.get(apiurl)
     return response.text
-
-def split_text(text, max_tokens=500, overlap=0, model='gpt-3.5-turbo'):
-    tokenizer = MODELS_INFO[model]['tokenizer']
-    tokens = tokenizer.encode(text)
-    sid = 0
-    splitted = []
-    while True:
-        if sid + overlap >= len(tokens):
-            break
-        eid = min(sid+max_tokens, len(tokens))
-        splitted.append(tokenizer.decode(tokens[sid:eid]))
-        sid = eid - overlap
-    return splitted
-
-def truncate_messages(messages, system_prompt="", model='gpt-3.5-turbo', n_response_tokens=500, keep_last=False):
-    max_tokens = MODELS_INFO[model]['max_tokens']
-    n_tokens_per_message = MODELS_INFO[model]['tokens_per_message']
-    tokenizer = MODELS_INFO[model]['tokenizer']
-    n_used_tokens = 3 + n_response_tokens
-    n_used_tokens += n_tokens_per_message + len(tokenizer.encode(system_prompt))
-    iterator = range(len(messages))
-    if keep_last: 
-        iterator = reversed(iterator)
-    for i in iterator:
-        message = messages[i]
-        n_used_tokens += n_tokens_per_message
-        if n_used_tokens >= max_tokens:
-            messages = messages[i+1:] if keep_last else messages[:i]
-            print('Messages Truncated')
-            break
-        content_tokens = tokenizer.encode(message['content'])
-        n_content_tokens = len(content_tokens)
-        n_used_tokens += n_content_tokens
-        if n_used_tokens >= max_tokens:
-            truncated_content_tokens = content_tokens[n_used_tokens-max_tokens:] if keep_last else content_tokens[:max_tokens-n_used_tokens]
-            other_messages = messages[i+1:] if keep_last else messages[:i]
-            messages = [{'role': message['role'], 'content': tokenizer.decode(truncated_content_tokens)}] + other_messages
-            print('Messages Truncated')
-            break
-    return messages
-
-
-@retry(wait=wait_random_exponential(min=1, max=10), stop=stop_after_attempt(6))
-def get_chatgpt_response(messages:list, system_prompt="", model='gpt-3.5-turbo', temperature=0.5, keep_last=True):
-    messages = copy.deepcopy(messages)
-    messages = truncate_messages(messages, system_prompt, model, keep_last=keep_last)
-    messages = [{"role": "system", "content": system_prompt}]+messages
-    completion = openai.ChatCompletion.create(
-        model=model,
-        messages=messages,
-        temperature=temperature,
-    )
-    response = dict(completion.choices[0].message)
-    response['dollars_spent'] = completion['usage']['total_tokens'] * MODELS_INFO[model]['pricing']
-    return response
 
 def get_selenium_driver():
     chromium_driver_path = Path("/usr/bin/chromedriver")
@@ -113,40 +55,6 @@ def get_selenium_driver():
     )
     return driver
 
-def create_message(chunk: str, question: str):
-    if question != '':
-        content = f'"""{chunk}""" Using the above text, answer the following'
-        f' question: "{question}" -- if the question cannot be answered using the text,'
-        " summarize the text. Please output in the language used in the above text.",
-    else:
-        content = (
-            f'"""{chunk}"""'
-            '\nSummarize above reviews.'
-        )
-    
-    return {
-        "role": "user",
-        "content": content
-    }
-
-def summarize_reviews(reviews, query):
-    message = create_message("\n".join(reviews), query)
-    response = get_chatgpt_response([message], model='gpt-3.5-turbo', temperature=0)['content']
-    return response
-
-
-def summarize_info(info):
-    if not info:
-        return ''
-    prompt = f"""```
-{info}
-```
-Above text is extracted from html info of a place. Concisely extract key informations from it.
-Key Information:
-"""
-    response = get_chatgpt_response([{'role': 'user', 'content': prompt}], model='gpt-3.5-turbo', temperature=0)['content']
-    return response
-
 def get_summarized_text(place, extra_question=''):
     place['extra_questoin'] = extra_question
     prompt = f""" {place}
@@ -160,7 +68,7 @@ Please output using the following format in English:
 """
     del place['extra_questoin']
     #print(prompt)
-    response = get_chatgpt_response([{'role': 'user', 'content': prompt}], model='gpt-3.5-turbo', temperature=0)['content']    
+    response = create_chat_completion(messages=[{'role': 'user', 'content': prompt}], model=CFG.fast_llm_model, temperature=0)
     return response
 
 
@@ -283,9 +191,9 @@ def get_place_details(place_url, extra_question=''):
     "search_places",
     "Search locations and destinations, returning top_n results, calculate their distance matrix in km, and save to file.",
     '"search_keyword": "<Examples:강릉 여행지, 제주 가볼만한 곳, 신림 근처, 고기 맛집; avoid ranking numbers; instead use top_n arg>", '
-    '"filename": "<yaml_filename>", "top_n": "<default:10>", "extra_request": "<Examples:뷰 좋은 곳, 주차 가능한가요?>"',
+    '"filename": "<yaml_filename>", "top_n": "<default:10>", "search_details": "<Examples:뷰 좋은 곳, 주차 가능한가요?>"',
 )
-def search_places(search_keyword, filename, top_n=5, extra_request=""):
+def search_places(search_keyword, filename, top_n=5, search_details=""):
     top_n = int(top_n)
     driver = get_selenium_driver()
     naver_map_search_url = f'https://m.map.naver.com/search2/search.naver?query={search_keyword}'
@@ -296,7 +204,7 @@ def search_places(search_keyword, filename, top_n=5, extra_request=""):
         driver.quit()
         return f"No results found for {search_keyword}. Try using a simpler search_keyword arg."
     def get_place_details_(place_url):
-        return get_place_details(place_url, extra_request)
+        return get_place_details(place_url, search_details)
     with concurrent.futures.ThreadPoolExecutor(len(elements)) as executor:
         results = list(executor.map(get_place_details_, [(f"https://m.place.naver.com/place/{element.get_attribute('data-id')}") for element in elements]))    
     #results = []
@@ -322,13 +230,13 @@ def search_places(search_keyword, filename, top_n=5, extra_request=""):
     distances_str = np.array2string(distances, precision=1, floatmode='fixed')    
     results = {"candidates": results, "distance_matrix": distances_str}
 
-    with open(filename, 'w') as f:
+    with open(os.path.join(CFG.workspace_path, filename), 'w') as f:
         yaml.dump(results, f, allow_unicode=True)
     
     # place name 리스트 추출
     place_names = [f"{res['name']}({res['type']})" for res in results['candidates']]
     
-    return f"The details of the found places:{place_names} have been written to {filename}. Information related to extra_request(if exists) has also been written."
+    return f"The details of the found places:{place_names} have been written to {filename}. Information related to search_details(if exists) has also been written."
 
 if __name__ == '__main__':
     print(search_places('부산 여행지', 'busan_top5.yaml', top_n=5))
