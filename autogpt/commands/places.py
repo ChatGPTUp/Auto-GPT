@@ -328,7 +328,10 @@ def search_places(search_keyword, filename, top_n=5, extra_request=""):
     # place name 리스트 추출
     place_names = [f"{res['name']}({res['type']})" for res in results['candidates']]
     
-    return f"The details of the found places:{place_names} have been written to {filename}. Information related to extra_request(if exists) has also been written."
+    return_msg = f"The details of the found places:{place_names} have been written to {filename}. Information related to extra_request(if exists) has also been written."
+    if len(place_names) < top_n:
+        return_msg += f' The number of found places is {len(place_names)}, which is less than {top_n}. By retrying this command with a simpler search keyword, you may find more places.'
+    return return_msg
 
 if __name__ == '__main__':
     print(search_places('부산 여행지', 'busan_top5.yaml', top_n=5))
