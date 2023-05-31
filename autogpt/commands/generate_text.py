@@ -21,6 +21,11 @@ def count_tokens(text):
     tokens = tokenizer.encode(text)
     return len(tokens)
 
+def truncate_text(text, max_tokens):
+    tokenizer = tiktoken.get_encoding("cl100k_base")
+    tokens = tokenizer.encode(text)
+    return tokenizer.decode(tokens[:max_tokens])
+
 def translate_section(section, language):
     response = create_chat_completion([{"role": "system", "content": f'Please translate markdown text to {language}. Keep special tokens intact, such as "#".'}, 
                                        {"role": "user", "content": section}], model=CFG.fast_llm_model, temperature=0)
@@ -56,7 +61,8 @@ def write_report(read_filenames, knowledge, topic, requirements, save_filename, 
     context += "\n" + knowledge
     max_tokens = 5000
     if count_tokens(context) > max_tokens:
-        return f"File contents are too long. Please reduce number of files or shorten file contents."
+        context = truncate_text(context, max_tokens)
+        # return f"File contents are too long. Please reduce number of files or shorten file contents."
 #     prompt = f"""{context}
 # Write a professional markdown report of topic "{topic}" with requirements "{requirements}". Utilize above information if needed. Your report must be in {language}."""
 #     response = create_chat_completion([{"role": "user", "content": prompt}], model=CFG.fast_llm_model, temperature=0)
