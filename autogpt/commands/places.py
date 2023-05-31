@@ -194,7 +194,7 @@ def get_place_details(place_url, extra_question=''):
     "Search locations and destinations, returning top_n results, calculate their distance matrix in km, and save to file. "
     "If you have 'search_details', recommend a larger value for 'n_top' than the needed number of places",
     '"search_keyword": "<Examples:강릉 여행지, 제주 가볼만한 곳, 신림 근처, 고기 맛집; avoid ranking numbers; instead use top_n arg>", '
-    '"filename": "<yaml_filename>", "top_n": "<default_and_max:10>", "search_details": "<Examples:뷰 좋은 곳, 주차 가능한가요?>"',
+    '"filename": "<yaml_filename>", "top_n": "<default_and_max:7>", "search_details": "<Examples:뷰 좋은 곳, 주차 가능한가요?>"',
 )
 def search_places(search_keyword, filename, top_n=5, search_details=""):
     top_n = int(top_n)
