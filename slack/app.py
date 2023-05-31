@@ -16,6 +16,7 @@ from fastapi.responses import JSONResponse
 from slack_sdk import WebClient
 from slack_sdk.signature import SignatureVerifier
 from slack_sdk.http_retry.builtin_handlers import RateLimitErrorRetryHandler
+from tenacity import retry, stop_after_attempt, wait_random_exponential, RetryError
 
 load_dotenv('../.env')
 
@@ -142,6 +143,16 @@ def process_user_message(user_message):
 
     return user_message, options
 
+@retry(wait=wait_random_exponential(min=1, max=10), stop=stop_after_attempt(6))
+def upload_files(channel, thread_ts, fname, file):
+    upload_text_file = client.files_upload(
+        channels=channel,
+        thread_ts=thread_ts,
+        title=fname,
+        file=file,
+    )
+    return upload_text_file
+
 def run_autogpt_slack(user_message, options, channel, thread_ts):
     
     # Make workspace folder and write ai_settings.yaml in it
@@ -241,12 +252,10 @@ def run_autogpt_slack(user_message, options, channel, thread_ts):
             file = os.path.join(root, fname)
             if fname not in ['ai_settings.yaml', 'auto-gpt.json', 'file_logger.txt']:
                 file = os.path.join(root, fname)
-                upload_text_file = client.files_upload(
-                    channels=channel,
-                    thread_ts=thread_ts,
-                    title=fname,
-                    file=file,
-                )
+                try:
+                    upload_files(channel, thread_ts, fname, file)
+                except RetryError as e:
+                    print(f"Error uploading file {file} to channel:{channel} / thread_ts:{thread_ts}")
 
     # Send $ spent message to slack
     client.chat_postMessage(
