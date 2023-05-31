@@ -45,9 +45,9 @@ def save_md_pdf(report, save_filename):
 @command(
     "write_report",
     "Write a high quality markdown report from files and text",
-    '"read_filenames": "list of filename to read and refer to", "knowledge": "prior knowledge to refer to", "topic": "topic of the report", "requirements": "requirements", "language": "language to write report with", "save_filename": "filename to save the markdown report to"',
+    '"read_filenames": "list of filename to read and refer to", "knowledge": "prior knowledge to refer to", "topic": "topic of the report", "requirements": "requirements", "save_filename": "filename to save the markdown report to"',
 )
-def write_report(read_filenames, knowledge, topic, requirements, save_filename, language, translate_ko=True):
+def write_report(read_filenames, knowledge, topic, requirements, save_filename, translate_ko=True):
     texts = []
     for filename in read_filenames:
         with open(os.path.join(CFG.workspace_path, filename)) as f:
@@ -61,16 +61,12 @@ def write_report(read_filenames, knowledge, topic, requirements, save_filename, 
 # Write a professional markdown report of topic "{topic}" with requirements "{requirements}". Utilize above information if needed. Your report must be in {language}."""
 #     response = create_chat_completion([{"role": "user", "content": prompt}], model=CFG.fast_llm_model, temperature=0)
     prompt = f"""{context}
-Write a professional markdown report of topic "{topic}" with requirements "{requirements}". Utilize above information if needed. Your report must be in English."""
-    en_report = create_chat_completion([{"role": "user", "content": prompt}], model=CFG.smart_llm_model, temperature=0)
-    if language and (language.lower() not in ['en', 'english']):
-        native_report = translate_md(en_report, language)
-        save_md_pdf(native_report, save_filename)
-    else:
-        save_md_pdf(en_report, save_filename)
-        if translate_ko:
-            ko_report = translate_md(en_report, "ko")
-            save_md_pdf(ko_report, save_filename.replace(".md", "_ko.md"))
+Write a professional markdown report of topic "{topic}" with requirements "{requirements}". Utilize above information if needed. If it contains photos, include them in the report."""
+    en_report = create_chat_completion([{"role": "system", "content": "Your report must be in English."}, {"role": "user", "content": prompt}], model=CFG.smart_llm_model, temperature=0)
+    save_md_pdf(en_report, save_filename)
+    if translate_ko:
+        ko_report = translate_md(en_report, "ko")
+        save_md_pdf(ko_report, save_filename.replace(".md", "_ko.md"))
 
     return f"Wrote report at {save_filename}. If there are no remaining tasks, recommend calling the 'task_complete' command. Please don't directly read {save_filename}. It could lead to a significant increase in our costs."
 
