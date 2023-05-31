@@ -77,7 +77,7 @@ def markdown_to_pdf(markdown_file, pdf_file):
     prerequisite: apt-get install wkhtmltopdf
     """
     with open(markdown_file, 'r', encoding='utf-8') as f:
-        html = markdown.markdown(f.read())
+        html = markdown.markdown(f.read(), tab_length=2)
     html= f"""<!DOCTYPE html>
 <html>
 <head>
