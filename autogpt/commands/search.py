@@ -254,8 +254,8 @@ def urls2summary(urls, goal, filename):
 
 @command(
     "news_search",
-    "Search news articles with keyword and save report",
-    '"keyword": "<keyword>", "goal": "<goal to achieve via searching>", "filename": "<filename to save report>"',
+    "Search news articles with keyword and save information",
+    '"keyword": "<keyword>", "goal": "<goal to achieve via searching>", "filename": "<yaml_filename>"',
 )
 def news_search(keyword, goal, filename):
     urls = get_urls(keyword, 'news', goal)
@@ -263,8 +263,8 @@ def news_search(keyword, goal, filename):
 
 @command(
     "google",
-    "Search internet with keyword and save report",
-    '"keyword": "<keyword>", "goal": "<goal to achieve via searching>", "filename": "<filename to save report>"',
+    "Search internet with keyword and save information",
+    '"keyword": "<keyword>", "goal": "<goal to achieve via searching>", "filename": "<yaml_filename>"',
 )
 def google(keyword, goal, filename):
     urls = get_urls(keyword, 'text', goal)
