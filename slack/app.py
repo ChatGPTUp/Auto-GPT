@@ -335,4 +335,4 @@ async def slack_events(request: Request, background_tasks: BackgroundTasks):
 async def index():
     return 'AutoAskUp'
 
-# nohup uvicorn app:app --host 0.0.0.0 --port 30207 --reload &
+# nohup uvicorn app:app --host 0.0.0.0 --port 30207 &
