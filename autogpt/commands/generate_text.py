@@ -82,7 +82,7 @@ def markdown_to_pdf(markdown_file, pdf_file):
 <html>
 <head>
     <meta charset="UTF-8">
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
     <style>
         body {{
             font-family: 'Noto Sans KR', sans-serif;
