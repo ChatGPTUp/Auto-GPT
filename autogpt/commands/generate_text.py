@@ -67,7 +67,7 @@ def write_report(read_filenames, knowledge, topic, requirements, save_filename, 
 # Write a professional markdown report of topic "{topic}" with requirements "{requirements}". Utilize above information if needed. Your report must be in {language}."""
 #     response = create_chat_completion([{"role": "user", "content": prompt}], model=CFG.fast_llm_model, temperature=0)
     prompt = f"""{context}
-Write a professional markdown report of topic "{topic}" with requirements "{requirements}". Utilize above information if needed. Do not include urls not present in the above information."""
+Write a professional markdown report of topic "{topic}" with requirements "{requirements}". Utilize above information if needed."""
     prompt += ' Your report must be in English.'
     en_report = create_chat_completion([{"role": "system", "content": "Your report must be in English."}, {"role": "user", "content": prompt}], model=CFG.smart_llm_model, temperature=0)
     save_md_pdf(en_report, save_filename)
