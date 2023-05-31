@@ -131,6 +131,9 @@ def process_user_message(user_message):
     if user_message.startswith('!'):
         options['gpt3_only'] = False
         user_message = user_message.replace('!', '').strip()
+    if user_message.startswith('%'):
+        options['gpt3_only'] = True
+        user_message = user_message.replace('%', '').strip()
 
     match = re.search(r'\$(\d+(\.\d+)?)\s*$', user_message)
     if match:
@@ -308,7 +311,9 @@ async def slack_events(request: Request, background_tasks: BackgroundTasks):
     start_message = "Preparing to launch AutoGPT..."
     if options['debug']:
         start_message += " (in DEBUG MODE)"
-    if not options['gpt3_only']:
+    if options['gpt3_only']:
+        start_message += " (with GPT3.5)"
+    else:
         start_message += " (with GPT4)"
     client.chat_postMessage(
         channel=event['channel'],
@@ -321,4 +326,4 @@ async def slack_events(request: Request, background_tasks: BackgroundTasks):
 async def index():
     return 'AutoAskUp'
 
-# nohup uvicorn app:app --host 0.0.0.0 --port 30207 &
+# nohup uvicorn app:app --host 0.0.0.0 --port 30207 --reload &
