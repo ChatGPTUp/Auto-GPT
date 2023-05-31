@@ -68,7 +68,7 @@ Please output using the following format in English:
 """
     del place['extra_questoin']
     #print(prompt)
-    response = create_chat_completion(messages=[{'role': 'user', 'content': prompt}], model=CFG.fast_llm_model, temperature=0)
+    response = create_chat_completion(messages=[{'role': 'user', 'content': prompt}], model=CFG.fast_llm_model, temperature=0.5)
     return response
 
 
@@ -191,9 +191,10 @@ def get_place_details(place_url, extra_question=''):
 
 @command(
     "search_places",
-    "Search locations and destinations, returning top_n results, calculate their distance matrix in km, and save to file.",
+    "Search locations and destinations, returning top_n results, calculate their distance matrix in km, and save to file. "
+    "If you have 'search_details', recommend a larger value for 'n_top' than the needed number of places",
     '"search_keyword": "<Examples:강릉 여행지, 제주 가볼만한 곳, 신림 근처, 고기 맛집; avoid ranking numbers; instead use top_n arg>", '
-    '"filename": "<yaml_filename>", "top_n": "<default:10>", "search_details": "<Examples:뷰 좋은 곳, 주차 가능한가요?>"',
+    '"filename": "<yaml_filename>", "top_n": "<default_and_max:10>", "search_details": "<Examples:뷰 좋은 곳, 주차 가능한가요?>"',
 )
 def search_places(search_keyword, filename, top_n=5, search_details=""):
     top_n = int(top_n)
@@ -240,7 +241,7 @@ def search_places(search_keyword, filename, top_n=5, search_details=""):
     
     return_msg = (
         f"The details of the found places:{place_names} have been written to {filename}."
-        " Information related to extra_request (if it exists) has also been written, along with the distance_matrix for all places."
+        " Information related to search_details (if it exists) has also been written, along with the distance_matrix for all places."
         " If you want to search other types of places, rerun this command with a different keyword."
         #f" Please don't directly read '{filename}'. It could lead to a significant increase in our costs."
     )
