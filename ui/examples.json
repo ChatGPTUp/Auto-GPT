@@ -1,5 +1,21 @@
 [
     [
+        "AutoAskUp",
+        "an AI that achieves below GOALS.",
+        [
+            ["엔비디아 주식을 사야해 말아야 해"], 
+            ["Make sure to write a report"]
+        ]
+    ],
+    [
+        "AutoAskUp",
+        "an AI that achieves below GOALS.",
+        [
+            ["강릉 바닷가의 멋진 카페 3개 추천"],
+            ["Make sure to write a report"]
+        ]
+    ],
+    [
         "AutoGPT-Demo",
         "an ai designed to teach me about auto gpt",
         [
@@ -7,13 +23,6 @@
             ["find the github and figure out what the project is"], 
             ["explain what auto gpt is in a file named autogpt.txt in korean"],
             ["when done saving, terminate"]
-        ]
-    ],
-    [
-        "뉴스요약봇",
-        "당신은 뉴스 요약 봇입니다.",
-        [
-            ["테슬라 뉴스 5개를 검색하고 요약해서 저장"]
         ]
     ]
 ]
